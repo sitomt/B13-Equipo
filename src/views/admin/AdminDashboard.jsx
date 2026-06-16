@@ -4,11 +4,14 @@ import {
 } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { buildAgenda } from '../../lib/agenda'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { todayMadrid, timeHM, relativeTime, appliesToday } from '../../lib/date'
 import { Card, CollapsibleSection, Pill, ProgressRing, Spinner, Avatar } from '../../components/ui'
 import { AnnouncementCard } from '../../components/cards'
 import { BirthdayNotice } from '../../components/Birthday'
+import Fichaje from '../../components/Fichaje'
+import NotificationsBanner from '../../components/NotificationsBanner'
+import { useSession } from '../../state/session'
 import { User, Activity, Alert, Megaphone, Spray, Coffee, Utensils, Check, Refresh, ChevronDown, Clock } from '../../components/icons'
 
 const STATUS_META = {
@@ -59,6 +62,7 @@ function RecurringRow({ row }) {
 }
 
 export default function AdminDashboard() {
+  const { employee } = useSession()
   const emp = useData(listEmployees, [])
   const entries = useData(allTodayEntries, [], { interval: 15000 })
   const incid = useData(listIncidencias, [], { interval: 20000 })
@@ -70,6 +74,11 @@ export default function AdminDashboard() {
   const coachComp = useData(() => todayCompletions('coach'), [], { interval: 30000 })
   const cleanTpl = useData(() => listTemplates('cleaning'), [])
   const cleanComp = useData(() => todayCompletions('cleaning'), [], { interval: 30000 })
+
+  // Sello real de última sincronización: marca la hora cuando llegan datos nuevos
+  // de presencia (no la hora de pintado, que era engañosa).
+  const [syncedAt, setSyncedAt] = useState(Date.now())
+  useEffect(() => { if (entries.data) setSyncedAt(Date.now()) }, [entries.data])
 
   if (emp.loading || entries.loading) {
     return <div className="flex justify-center py-16"><Spinner className="h-7 w-7" /></div>
@@ -122,13 +131,16 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-5 pb-24">
       <BirthdayNotice />
+      {/* El responsable también ficha (sin geocerca: desde cualquier sitio) */}
+      <Fichaje employee={employee} />
+      <NotificationsBanner />
       {/* En directo */}
       <div className="card-line inline-flex items-center gap-2 rounded-full bg-white/80 py-1.5 pl-3 pr-3.5 shadow-card">
         <span className="relative flex h-2.5 w-2.5">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sage opacity-60" />
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sage" />
         </span>
-        <span className="text-sm font-semibold text-ink/60">En directo · actualizado {timeHM(new Date().toISOString())}</span>
+        <span className="text-sm font-semibold text-ink/60">En directo · actualizado {timeHM(new Date(syncedAt).toISOString())}</span>
       </div>
 
       {/* Aviso urgente activo a limpieza */}

@@ -76,6 +76,9 @@ export const Trash = (p) => (
 export const Map = (p) => (
   <S {...p}><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" /><path d="M9 4v14M15 6v14" /></S>
 )
+export const MapPin = (p) => (
+  <S {...p}><path d="M20 10c0 5-8 12-8 12s-8-7-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></S>
+)
 export const Activity = (p) => <S {...p}><path d="M3 12h4l3 8 4-16 3 8h4" /></S>
 export const Pencil = (p) => (
   <S {...p}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" /></S>

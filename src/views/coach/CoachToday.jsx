@@ -9,6 +9,7 @@ import { haptic } from '../../lib/haptics'
 import { useToast } from '../../components/Toast'
 import { useSession } from '../../state/session'
 import { BirthdayNotice } from '../../components/Birthday'
+import NotificationsBanner from '../../components/NotificationsBanner'
 import { Sunrise, Moon, Activity, Megaphone, ChevronDown, Check } from '../../components/icons'
 
 function Collapsible({ icon: Icon, title, count, total, defaultOpen = true, action, children }) {
@@ -76,6 +77,7 @@ export default function CoachToday() {
     <div className="space-y-5 pb-24">
       <BirthdayNotice />
       <Fichaje employee={employee} />
+      <NotificationsBanner />
 
       {ann.data && ann.data.length > 0 && (
         <CollapsibleSection icon={Megaphone} title="Avisos de hoy" right={<Pill color="bronze">{ann.data.length}</Pill>} persistKey="b13.coach.avisos">

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { listAllAnnouncements, createAnnouncement, updateAnnouncement, createAdHoc, listAdHoc } from '../../lib/api'
+import { listAllAnnouncements, createAnnouncement, updateAnnouncement, createAdHoc, listAdHoc, listAnnouncementReads, listEmployees } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { useSession } from '../../state/session'
 import { useToast } from '../../components/Toast'
@@ -35,6 +35,21 @@ export default function AdminAnnouncements() {
   const toast = useToast()
   const ann = useData(listAllAnnouncements, [])
   const adhoc = useData(() => listAdHoc('cleaning'), [], { interval: 20000 })
+  const reads = useData(listAnnouncementReads, [], { interval: 30000 })
+  const staff = useData(listEmployees, [])
+
+  // Para cada aviso: cuántos de su público objetivo lo han leído.
+  const readsByAnn = new Map()
+  for (const r of reads.data || []) {
+    if (!readsByAnn.has(r.announcement_id)) readsByAnn.set(r.announcement_id, new Set())
+    readsByAnn.get(r.announcement_id).add(r.employee_id)
+  }
+  function readStat(a) {
+    const audience = (staff.data || []).filter((e) => e.role !== 'admin' && a.target_roles?.includes(e.role))
+    const readSet = readsByAnn.get(a.id) || new Set()
+    const read = audience.filter((e) => readSet.has(e.id))
+    return { read, total: audience.length, pending: audience.filter((e) => !readSet.has(e.id)) }
+  }
 
   // Form aviso
   const [title, setTitle] = useState('')
@@ -91,6 +106,22 @@ export default function AdminAnnouncements() {
   async function deactivate(a) {
     try { await updateAnnouncement(a.id, { active: false }); await ann.reload(true); toast('Aviso archivado') }
     catch { toast('Error', 'error') }
+  }
+
+  // Reenvía un recordatorio destacado a los roles del aviso que aún no lo han leído.
+  async function remind(a, pending) {
+    const roles = [...new Set(pending.map((e) => e.role))]
+    setBusy(true)
+    try {
+      await createAnnouncement({
+        title: `Recordatorio: ${a.title}`, body: a.body || null,
+        target_roles: roles.length ? roles : a.target_roles,
+        priority: 'high', starts_on: today, ends_on: a.ends_on,
+        created_by: employee.id, created_by_name: employee.name,
+      })
+      toast('Recordatorio enviado ✓')
+      await Promise.all([ann.reload(true), reads.reload(true)])
+    } catch { toast('No se pudo recordar', 'error') } finally { setBusy(false) }
   }
 
   const input = 'field'
@@ -161,7 +192,10 @@ export default function AdminAnnouncements() {
           <Card className="p-4 text-sm text-ink/45">No hay avisos activos.</Card>
         ) : (
           <div className="space-y-2">
-            {activeAnn.map((a) => (
+            {activeAnn.map((a) => {
+              const st = readStat(a)
+              const allRead = st.total > 0 && st.read.length === st.total
+              return (
               <Card key={a.id} className="p-3">
                 <div className="flex items-start gap-2">
                   <div className="min-w-0 flex-1">
@@ -175,8 +209,27 @@ export default function AdminAnnouncements() {
                     Archivar
                   </button>
                 </div>
+                {/* Acuse de lectura */}
+                {st.total > 0 && (
+                  <div className="mt-2 border-t border-ink/[0.06] pt-2">
+                    <div className="flex items-center gap-2">
+                      <Pill color={allRead ? 'sage' : 'ochre'}>{allRead ? 'Leído por todos' : `Leído ${st.read.length}/${st.total}`}</Pill>
+                      {!allRead && st.pending.length > 0 && (
+                        <button
+                          onClick={() => remind(a, st.pending)}
+                          className="ml-auto rounded-full bg-bronze/12 px-3 py-1.5 text-xs font-bold text-bronze-dark active:scale-95"
+                        >
+                          Recordar a {st.pending.length}
+                        </button>
+                      )}
+                    </div>
+                    {!allRead && st.pending.length > 0 && (
+                      <p className="mt-1.5 text-xs text-ink/45">Falta: {st.pending.map((e) => e.name.split(' ')[0]).join(', ')}</p>
+                    )}
+                  </div>
+                )}
               </Card>
-            ))}
+            )})}
           </div>
         )}
       </div>

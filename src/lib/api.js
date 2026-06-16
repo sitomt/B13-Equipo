@@ -1,5 +1,19 @@
 import { supabase } from './supabase'
 import { todayMadrid } from './date'
+import { enqueue, isNetworkError } from './offline'
+
+// Inserción resiliente para acciones de campo: si falla por falta de cobertura,
+// se encola y se reintenta al volver la red. Devuelve { queued }.
+async function resilientInsert(table, row) {
+  try {
+    const { error } = await supabase.from(table).insert(row)
+    if (error) throw error
+    return { queued: false }
+  } catch (e) {
+    if (isNetworkError(e)) { enqueue(table, row); return { queued: true } }
+    throw e
+  }
+}
 
 // =====================================================================
 // Capa de acceso a datos. Cada acción se registra con quién/qué/cuándo
@@ -8,7 +22,7 @@ import { todayMadrid } from './date'
 
 // ---------- EMPLEADOS ----------
 // Columnas seguras: nunca se selecciona `pin` (el PIN solo se valida en el servidor vía RPC).
-const EMP_COLS = 'id, name, role, color, active, birth_date, photo_url'
+const EMP_COLS = 'id, name, role, color, active, birth_date, photo_url, geofenced'
 
 export async function listEmployees() {
   const { data, error } = await supabase
@@ -70,10 +84,12 @@ export async function clearPin(employeeId) {
 }
 
 // Alta de un nuevo perfil. Crea la fila en la BD (login simulado actual).
-export async function createEmployee({ name, role, color, birth_date = null }) {
+// `geofenced`: si true, solo puede fichar dentro de la geocerca del gym.
+// El admin (responsable/dueño) ficha desde cualquier sitio → siempre false.
+export async function createEmployee({ name, role, color, birth_date = null, geofenced = true }) {
   const { data, error } = await supabase
     .from('employees')
-    .insert({ name, role, color, birth_date })
+    .insert({ name, role, color, birth_date, geofenced: role === 'admin' ? false : geofenced })
     .select()
     .single()
   if (error) throw error
@@ -145,10 +161,72 @@ export async function allTodayEntries() {
   return data
 }
 
-export async function addTimeEntry(employeeId, kind, notes = null) {
+// `geo` opcional: { lat, lng, accuracy, inside } para auditoría del fichaje.
+// `extra` opcional: p.ej. { auto_closed: true } para el cierre automático.
+export async function addTimeEntry(employeeId, kind, notes = null, geo = null, extra = {}) {
+  const row = { employee_id: employeeId, kind, notes, ...extra }
+  if (geo) {
+    row.lat = geo.lat ?? null
+    row.lng = geo.lng ?? null
+    row.accuracy_m = geo.accuracy ?? null
+    row.inside = geo.inside ?? null
+  }
+  // Fichaje resiliente: nunca se pierde aunque no haya cobertura.
+  return resilientInsert('time_entries', row)
+}
+
+// ---------- GEOCERCA DEL FICHAJE ----------
+// Config única de la geocerca del gimnasio (centro, radio, buffer, gracia).
+export async function getGeofence() {
+  const { data, error } = await supabase.from('gym_geofence').select('*').eq('id', 1).maybeSingle()
+  if (error) throw error
+  return data
+}
+
+export async function updateGeofence(patch) {
   const { error } = await supabase
+    .from('gym_geofence')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', 1)
+  if (error) throw error
+}
+
+// Catch-up: cierra turnos olvidados de días anteriores. Devuelve cuántos cerró.
+export async function reconcileOpenShifts() {
+  const { data, error } = await supabase.rpc('reconcile_open_shifts')
+  if (error) throw error
+  return data
+}
+
+// ---------- CORRECCIONES DE FICHAJE (admin) ----------
+// Fichajes de un empleado en un día concreto (para revisar/corregir).
+export async function entriesForDay(employeeId, date) {
+  const { data, error } = await supabase
     .from('time_entries')
-    .insert({ employee_id: employeeId, kind, notes })
+    .select('*')
+    .eq('employee_id', employeeId)
+    .eq('work_date', date)
+    .order('occurred_at', { ascending: true })
+  if (error) throw error
+  return data
+}
+
+// Inserta un fichaje manual del admin a una hora concreta (corrección).
+export async function addManualEntry(employeeId, kind, occurredAtISO, workDate) {
+  const { error } = await supabase.from('time_entries').insert({
+    employee_id: employeeId, kind, occurred_at: occurredAtISO, work_date: workDate,
+    notes: 'Corrección manual (admin)',
+  })
+  if (error) throw error
+}
+
+export async function updateTimeEntry(id, patch) {
+  const { error } = await supabase.from('time_entries').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteTimeEntry(id) {
+  const { error } = await supabase.from('time_entries').delete().eq('id', id)
   if (error) throw error
 }
 
@@ -212,7 +290,7 @@ export async function todayCompletions(role) {
 }
 
 export async function completeTask(template, employee, notes = null) {
-  const { data, error } = await supabase.from('task_completions').insert({
+  const row = {
     template_id: template.id,
     title: template.title,
     section: template.section,
@@ -220,9 +298,16 @@ export async function completeTask(template, employee, notes = null) {
     employee_id: employee.id,
     employee_name: employee.name,
     notes,
-  }).select().single()
-  if (error) throw error
-  return data // se devuelve para poder ofrecer "Deshacer" sin esperar al refetch
+  }
+  try {
+    const { data, error } = await supabase.from('task_completions').insert(row).select().single()
+    if (error) throw error
+    return data // se devuelve para poder ofrecer "Deshacer" sin esperar al refetch
+  } catch (e) {
+    // Sin cobertura: se encola y se marca como hecha igualmente (sin "Deshacer").
+    if (isNetworkError(e)) { enqueue('task_completions', row); return { id: null, _queued: true } }
+    throw e
+  }
 }
 
 export async function undoCompletion(completionId) {
@@ -562,6 +647,25 @@ export async function createAnnouncement(a) {
 
 // ---------- WEB PUSH (notificaciones tipo banner) ----------
 // Guarda la suscripción del dispositivo para este empleado.
+// ---------- ACUSE DE LECTURA DE AVISOS ----------
+// Marca un aviso como leído por un empleado (idempotente).
+export async function markAnnouncementRead(announcementId, employeeId) {
+  if (!announcementId || !employeeId) return
+  const { error } = await supabase
+    .from('announcement_reads')
+    .upsert({ announcement_id: announcementId, employee_id: employeeId }, { onConflict: 'announcement_id,employee_id', ignoreDuplicates: true })
+  if (error) throw error
+}
+
+// Todas las lecturas (para que el admin vea quién/cuántos han leído cada aviso).
+export async function listAnnouncementReads() {
+  const { data, error } = await supabase
+    .from('announcement_reads')
+    .select('announcement_id, employee_id')
+  if (error) throw error
+  return data
+}
+
 export async function savePushSubscription(employeeId, { endpoint, p256dh, auth }) {
   const { error } = await supabase.from('push_subscriptions').upsert(
     { employee_id: employeeId, endpoint, p256dh, auth, user_agent: navigator.userAgent },

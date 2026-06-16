@@ -7,7 +7,7 @@ import { uploadPhoto, updateEmployee, changePin } from '../lib/api'
 import { enablePush, notificationsEnabled, pushSupported } from '../lib/push'
 import { useToast } from './Toast'
 import { useSession } from '../state/session'
-import { Key, Chevron, Camera, Bell, Check } from './icons'
+import { Key, Chevron, Camera, Bell, Check, Book } from './icons'
 
 // Ajustes de la cuenta del propio empleado: cambiar foto de perfil y cambiar PIN.
 // Un único Sheet con dos modos (menú | pin) para no anidar hojas.
@@ -128,6 +128,18 @@ export default function AccountSheet({ open, onClose, employee }) {
               {notifOn ? <Check size={18} className="text-sage" /> : <Chevron size={18} className="text-ink/25" />}
             </button>
           )}
+
+          <button
+            onClick={() => { onClose(); window.dispatchEvent(new Event('b13:onboarding')) }}
+            className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-ink/[0.04] p-4 text-left transition active:scale-[0.99]"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-bronze/12 text-bronze-dark"><Book size={20} /></span>
+            <span className="flex-1">
+              <span className="block font-semibold text-ink">Ver tutorial</span>
+              <span className="block text-xs text-ink/45">Repasa cómo funciona la app</span>
+            </span>
+            <Chevron size={18} className="text-ink/25" />
+          </button>
         </div>
       )}
 

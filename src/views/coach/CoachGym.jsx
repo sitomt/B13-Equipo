@@ -7,6 +7,7 @@ import { useData } from '../../lib/useData'
 import { buildAgenda } from '../../lib/agenda'
 import { useSession } from '../../state/session'
 import { useToast } from '../../components/Toast'
+import Sheet from '../../components/Sheet'
 import { Card, CollapsibleSection, Pill, ProgressRing, Skeleton, EmptyState } from '../../components/ui'
 import { Alert, Wrench, Spray, Check, Clock, User } from '../../components/icons'
 import { relativeTime, timeHM } from '../../lib/date'
@@ -25,6 +26,8 @@ export default function CoachGym() {
   const ctpl = useData(() => listTemplates('cleaning'), [])
   const ccomp = useData(() => todayCompletions('cleaning'), [], { interval: 45000 })
   const [busy, setBusy] = useState(null)
+  const [resolving, setResolving] = useState(null) // incidencia a resolver (con nota)
+  const [note, setNote] = useState('')
 
   const openIncid = (incid.data || []).filter((i) => i.status !== 'done')
   const openMaint = (maint.data || []).filter((i) => i.status !== 'done')
@@ -33,12 +36,19 @@ export default function CoachGym() {
   const cleanItems = cleaning.sections.agenda
   const cleanDone = cleanItems.filter((i) => i.done).length
 
-  async function resolve(i) {
+  function openResolve(i) { setResolving(i); setNote('') }
+
+  async function confirmResolve() {
+    const i = resolving
     setBusy(i.id)
     try {
-      await updateIncidencia(i.id, { status: 'done', resolved_by_name: employee.name, resolved_at: new Date().toISOString() })
+      await updateIncidencia(i.id, {
+        status: 'done', resolved_by_name: employee.name, resolved_at: new Date().toISOString(),
+        resolution_notes: note.trim() || null,
+      })
       await incid.reload(true)
       toast('Incidencia resuelta ✓')
+      setResolving(null); setNote('')
     } catch { toast('No se pudo resolver', 'error') } finally { setBusy(null) }
   }
 
@@ -71,7 +81,7 @@ export default function CoachGym() {
                   </p>
                 </div>
                 <button
-                  onClick={() => resolve(i)}
+                  onClick={() => openResolve(i)}
                   disabled={busy === i.id}
                   className="flex w-full items-center justify-center gap-1.5 border-t border-ink/[0.06] py-2.5 text-sm font-bold text-sage active:bg-ink/[0.03] disabled:opacity-50"
                 >
@@ -148,6 +158,28 @@ export default function CoachGym() {
           </Card>
         )}
       </CollapsibleSection>
+
+      {/* Resolver incidencia con nota opcional (qué se hizo) */}
+      <Sheet open={!!resolving} onClose={() => setResolving(null)} title="Resolver incidencia">
+        {resolving && (
+          <>
+            <p className="mb-1 font-display text-xl font-bold">{resolving.title}</p>
+            {resolving.zone && <p className="mb-4 text-sm text-ink/50">{resolving.zone}</p>}
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-ink/40">Nota de resolución (opcional)</label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+              autoFocus
+              placeholder="Qué se ha hecho para resolverlo…"
+              className="mb-5 field"
+            />
+            <button onClick={confirmResolve} disabled={busy === resolving.id} className="btn-primary">
+              Marcar como resuelta
+            </button>
+          </>
+        )}
+      </Sheet>
     </div>
   )
 }

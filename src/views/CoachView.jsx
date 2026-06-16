@@ -9,6 +9,7 @@ import AnnouncementSheet from '../components/AnnouncementSheet'
 import CoachToday from './coach/CoachToday'
 import CoachGym from './coach/CoachGym'
 import ScheduleScreen from './ScheduleScreen'
+import GeoGate from '../components/GeoGate'
 import { useSession } from '../state/session'
 import { Activity, Dumbbell, Calendar, Alert, Wrench, Spray, Chat, Megaphone } from '../components/icons'
 
@@ -33,9 +34,16 @@ export default function CoachView() {
       <Header subtitle={SUBTITLE[tab]} />
 
       <div className="mx-auto max-w-md px-4 pt-4">
-        {tab === 'hoy' && <CoachToday />}
-        {tab === 'gym' && <CoachGym />}
-        {tab === 'horario' && <ScheduleScreen editable={false} />}
+        {/* Horarios queda accesible siempre (lectura); el trabajo del día se
+            desbloquea estando en el gimnasio. */}
+        {tab === 'horario' ? (
+          <ScheduleScreen editable={false} />
+        ) : (
+          <GeoGate employee={employee}>
+            {tab === 'hoy' && <CoachToday />}
+            {tab === 'gym' && <CoachGym />}
+          </GeoGate>
+        )}
       </div>
 
       <SpeedDial

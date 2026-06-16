@@ -6,6 +6,7 @@ import { useData } from '../../lib/useData'
 import { buildAgenda } from '../../lib/agenda'
 import { useSession } from '../../state/session'
 import { BirthdayNotice } from '../../components/Birthday'
+import NotificationsBanner from '../../components/NotificationsBanner'
 import { Map, Spray, Megaphone, Activity, Alert } from '../../components/icons'
 
 export default function CleaningToday() {
@@ -39,6 +40,7 @@ export default function CleaningToday() {
       )}
 
       <Fichaje employee={employee} />
+      <NotificationsBanner />
 
       {ann.data && ann.data.length > 0 && (
         <CollapsibleSection icon={Megaphone} title="Avisos" right={<Pill color="bronze">{ann.data.length}</Pill>} persistKey="b13.clean.avisos">

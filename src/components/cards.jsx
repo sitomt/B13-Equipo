@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { completeTask, undoCompletion, completeAdHoc } from '../lib/api'
+import { completeTask, undoCompletion, completeAdHoc, markAnnouncementRead } from '../lib/api'
 import { timeHM } from '../lib/date'
 import { haptic } from '../lib/haptics'
 import { useToast } from './Toast'
+import { useSession } from '../state/session'
 import { Pill } from './ui'
 import { Check, Clock, Refresh, Megaphone, Spray, User, Lock } from './icons'
 
@@ -42,12 +43,17 @@ export function TaskRow({ item, employee, onChange }) {
         await undoCompletion(item.completionId)
       } else {
         const row = await completeTask(item, employee)
-        toast('Hecho ✓', 'success', {
-          label: 'Deshacer',
-          onClick: async () => {
-            try { await undoCompletion(row.id); await onChange?.() } catch { /* ya no existe */ }
-          },
-        })
+        // Si se guardó en la cola offline no hay id todavía → sin "Deshacer".
+        if (row?._queued) {
+          toast('Guardado · se enviará al recuperar conexión', 'success')
+        } else {
+          toast('Hecho ✓', 'success', {
+            label: 'Deshacer',
+            onClick: async () => {
+              try { await undoCompletion(row.id); await onChange?.() } catch { /* ya no existe */ }
+            },
+          })
+        }
       }
       await onChange?.()
     } catch {
@@ -152,6 +158,15 @@ export function TaskRow({ item, employee, onChange }) {
 // Aviso de comunicación interna
 export function AnnouncementCard({ a }) {
   const high = a.priority === 'high'
+  const { employee } = useSession()
+
+  // Acuse de lectura: al mostrarse a un miembro del equipo (no admin), se marca
+  // como leído para que dirección sepa quién lo ha visto.
+  useEffect(() => {
+    if (employee && employee.role !== 'admin' && a?.id) {
+      markAnnouncementRead(a.id, employee.id).catch(() => {})
+    }
+  }, [a?.id, employee?.id, employee?.role])
 
   // Avisos de un coach: más discretos que los de dirección (nota de compañero).
   if (a.created_by_role && a.created_by_role !== 'admin') {

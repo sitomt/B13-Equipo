@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
-import { addTimeEntry, deriveStatus, todayEntries } from '../lib/api'
+import { useEffect, useRef, useState } from 'react'
+import { addTimeEntry, deriveStatus, todayEntries, getGeofence } from '../lib/api'
 import { useData } from '../lib/useData'
 import { timeHM } from '../lib/date'
 import { fmtMinutes, workedMinutesForDay } from '../lib/hours'
+import { isGeofenced, fenceActive, getPosition, evaluate, watchAway, geoErrorMessage } from '../lib/geo'
+import { haptic } from '../lib/haptics'
 import { ConfirmSheet } from './ui'
 import { useToast } from './Toast'
-import { Power, Coffee, Utensils, Clock, LogOut } from './icons'
+import { Power, Coffee, Utensils, Clock, LogOut, MapPin } from './icons'
 
 const STATUS_META = {
   out: { label: 'Sin fichar', color: 'text-ink/40', dot: 'bg-ink/25' },
@@ -63,10 +65,16 @@ function ActionBtn({ icon: Icon, label, onClick, tone = 'ink', disabled }) {
 
 export default function Fichaje({ employee, onChange }) {
   const { data: entries, reload } = useData(() => todayEntries(employee.id), [employee.id], { interval: 60000 })
+  const { data: fence } = useData(getGeofence, [])
   const [busy, setBusy] = useState(false)
   const [confirmOut, setConfirmOut] = useState(false)
   const [now, setNow] = useState(Date.now())
+  const [geoMsg, setGeoMsg] = useState(null) // aviso de geocerca bajo la tarjeta
   const toast = useToast()
+  const autoClosing = useRef(false)
+
+  // ¿Se aplica geocerca a este empleado y está configurada? (admin nunca)
+  const geoOn = isGeofenced(employee) && fenceActive(fence)
 
   const status = deriveStatus(entries || [])
   const clockInEntry = (entries || []).find((e) => e.kind === 'clock_in')
@@ -86,11 +94,11 @@ export default function Fichaje({ employee, onChange }) {
   const worked = live ? fmtClock(elapsedMs(entries || [], now)) : null
   const finishedTotal = finished ? fmtMinutes(workedMinutesForDay(entries || [])) : null
 
-  async function act(kind, msg) {
+  async function act(kind, msg, geo = null, extra = {}) {
     if (busy) return
     setBusy(true)
     try {
-      await addTimeEntry(employee.id, kind)
+      await addTimeEntry(employee.id, kind, null, geo, extra)
       await reload(true)
       onChange?.()
       toast(msg)
@@ -100,6 +108,65 @@ export default function Fichaje({ employee, onChange }) {
       setBusy(false)
     }
   }
+
+  // Fichar entrada: si el empleado tiene geocerca, debe estar dentro del radio.
+  async function clockIn() {
+    if (busy) return
+    if (!geoOn) return act('clock_in', 'Entrada fichada')
+    setBusy(true)
+    setGeoMsg(null)
+    try {
+      const pos = await getPosition()
+      const ev = evaluate(pos, fence)
+      if (!ev.inside) {
+        haptic('error')
+        const m = Math.round(ev.distance)
+        setGeoMsg(`Estás a ~${m > 999 ? (m / 1000).toFixed(1) + ' km' : m + ' m'} del gimnasio. Acércate para fichar.`)
+        toast('Fuera del gimnasio: no puedes fichar', 'error')
+        setBusy(false)
+        return
+      }
+      setBusy(false)
+      await act('clock_in', 'Entrada fichada', { ...pos, inside: true })
+    } catch (e) {
+      haptic('error')
+      setGeoMsg(geoErrorMessage(e.code))
+      toast('No se pudo verificar tu ubicación', 'error')
+      setBusy(false)
+    }
+  }
+
+  // Cierre automático cuando el empleado se aleja del gimnasio (turno en curso).
+  async function autoClockOut(pos) {
+    if (autoClosing.current) return
+    autoClosing.current = true
+    haptic('warning')
+    try {
+      await addTimeEntry(employee.id, 'clock_out',
+        'Cierre automático: te alejaste del gimnasio',
+        pos ? { ...pos, inside: false } : null,
+        { auto_closed: true })
+      await reload(true)
+      onChange?.()
+      toast('Te has alejado del gimnasio · jornada cerrada', 'error')
+    } catch { /* reintenta en la próxima lectura */ autoClosing.current = false }
+  }
+
+  // Vigilancia de alejamiento mientras hay turno abierto (solo geofenced).
+  useEffect(() => {
+    if (!geoOn || status === 'out') return
+    autoClosing.current = false
+    const stop = watchAway(fence, {
+      onWarn: (d) => {
+        setGeoMsg(`Te estás alejando del gimnasio (~${Math.round(d)} m). Si sales, tu fichaje se cerrará solo.`)
+        haptic('warning')
+      },
+      onLeave: (pos) => autoClockOut(pos),
+      onUpdate: ({ inside }) => { if (inside) setGeoMsg(null) },
+    })
+    return stop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geoOn, status, fence])
 
   return (
     <div className="relative overflow-hidden rounded-xl2 bg-ink p-4 text-white shadow-card">
@@ -130,13 +197,14 @@ export default function Fichaje({ employee, onChange }) {
 
       {status === 'out' && (
         <button
-          onClick={() => act('clock_in', 'Entrada fichada')}
+          onClick={clockIn}
           disabled={busy}
           className={`relative flex w-full items-center justify-center gap-2 rounded-2xl py-4 font-extrabold transition-enter active:scale-95 disabled:opacity-50 ${
             finished ? 'bg-white/10 text-base text-white/80' : 'bg-sage text-lg text-white'
           }`}
         >
-          <Power size={24} /> {finished ? 'Volver a fichar entrada' : 'Fichar entrada'}
+          {geoOn ? <MapPin size={22} /> : <Power size={24} />}
+          {busy && geoOn ? 'Comprobando ubicación…' : finished ? 'Volver a fichar entrada' : 'Fichar entrada'}
         </button>
       )}
 
@@ -166,6 +234,19 @@ export default function Fichaje({ employee, onChange }) {
         >
           <Power size={24} /> Terminar comida
         </button>
+      )}
+
+      {/* Aviso de geocerca: fuera de radio, alejándose, o error de ubicación */}
+      {geoOn && geoMsg && (
+        <div className="relative mt-3 flex items-start gap-2 rounded-2xl bg-terracotta/15 px-3 py-2.5 text-[13px] font-semibold text-white/90 ring-1 ring-terracotta/30">
+          <MapPin size={16} className="mt-0.5 shrink-0 text-terracotta" />
+          <span>{geoMsg}</span>
+        </div>
+      )}
+      {geoOn && status === 'out' && !geoMsg && (
+        <p className="relative mt-2.5 flex items-center justify-center gap-1.5 text-xs font-medium text-white/45">
+          <MapPin size={13} /> Fichaje activado por ubicación del gimnasio
+        </p>
       )}
 
       <ConfirmSheet

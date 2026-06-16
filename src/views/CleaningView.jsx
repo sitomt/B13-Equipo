@@ -5,6 +5,7 @@ import ScheduleOverlay from '../components/ScheduleOverlay'
 import AnnouncementSheet from '../components/AnnouncementSheet'
 import CleaningToday from './cleaning/CleaningToday'
 import CleaningStats from './cleaning/CleaningStats'
+import GeoGate from '../components/GeoGate'
 import { useSession } from '../state/session'
 import { Map, BarChart } from '../components/icons'
 
@@ -27,8 +28,10 @@ export default function CleaningView() {
       <Header subtitle={SUBTITLE[tab]} onCalendar={() => setSchedule(true)} onAnnounce={() => setAnnOpen(true)} />
 
       <div className="mx-auto max-w-md px-4 pt-4">
-        {tab === 'ruta' && <CleaningToday />}
-        {tab === 'stats' && <CleaningStats />}
+        <GeoGate employee={employee}>
+          {tab === 'ruta' && <CleaningToday />}
+          {tab === 'stats' && <CleaningStats />}
+        </GeoGate>
       </div>
 
       <AnnouncementSheet

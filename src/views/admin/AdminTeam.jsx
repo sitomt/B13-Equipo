@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Sheet from '../../components/Sheet'
 import { Card, SectionTitle, CollapsibleSection, Pill, Spinner, ConfirmSheet, EmptyState, Avatar } from '../../components/ui'
-import { listAllEmployees, createEmployee, updateEmployee, deactivateEmployee, clearPin } from '../../lib/api'
+import { listAllEmployees, createEmployee, updateEmployee, deactivateEmployee, clearPin, reconcileOpenShifts } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { useSession } from '../../state/session'
 import { useToast } from '../../components/Toast'
 import { isBirthdayToday } from '../../lib/date'
-import { User, Plus, Trash, Power, Settings, Dumbbell, Spray, Wrench, Key } from '../../components/icons'
+import GeofenceEditor from '../../components/GeofenceEditor'
+import TimeEntriesEditor from '../../components/TimeEntriesEditor'
+import { User, Plus, Trash, Power, Settings, Dumbbell, Spray, Wrench, Key, MapPin, Clock } from '../../components/icons'
 
 const ROLE_META = {
   admin: { label: 'Administración', short: 'Admin', icon: Settings },
@@ -26,6 +28,7 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
   const [role, setRole] = useState('coach')
   const [color, setColor] = useState(COLORS[0])
   const [birthDate, setBirthDate] = useState('')
+  const [geofenced, setGeofenced] = useState(true)
   const [busy, setBusy] = useState(false)
   const [confirmPin, setConfirmPin] = useState(false)
 
@@ -36,6 +39,7 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
     setRole(editing?.role || 'coach')
     setColor(editing?.color || COLORS[0])
     setBirthDate(editing?.birth_date || '')
+    setGeofenced(editing?.geofenced ?? true)
     setConfirmPin(false)
     setLastOpen(true)
   } else if (!open && lastOpen) {
@@ -54,7 +58,9 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
     if (!name.trim()) { toast('Pon un nombre', 'error'); return }
     setBusy(true)
     try {
-      const fields = { name: name.trim(), role, color, birth_date: birthDate || null }
+      // El admin nunca tiene geocerca (ficha desde cualquier sitio).
+      const geofencedFinal = role === 'admin' ? false : geofenced
+      const fields = { name: name.trim(), role, color, birth_date: birthDate || null, geofenced: geofencedFinal }
       if (editing) await updateEmployee(editing.id, fields)
       else await createEmployee(fields)
       toast(editing ? 'Perfil actualizado ✓' : 'Perfil creado ✓')
@@ -115,6 +121,33 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
       />
       <p className="mb-5 px-1 text-xs text-ink/40">El día de su cumpleaños recibirá una felicitación de Baktun 13.</p>
 
+      {/* Geocerca de fichaje: el admin queda exento (ficha desde cualquier sitio) */}
+      {role !== 'admin' && (
+        <button
+          type="button"
+          onClick={() => setGeofenced((v) => !v)}
+          className="mb-5 flex w-full items-center gap-3 rounded-2xl bg-ink/[0.04] p-4 text-left transition active:scale-[0.99]"
+        >
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${geofenced ? 'bg-bronze/15 text-bronze-dark' : 'bg-ink/8 text-ink/40'}`}>
+            <MapPin size={20} />
+          </span>
+          <span className="flex-1">
+            <span className="block font-semibold text-ink">Fichar solo en el gimnasio</span>
+            <span className="block text-xs text-ink/45">
+              {geofenced ? 'Solo podrá fichar dentro de la geocerca del club' : 'Podrá fichar desde cualquier ubicación'}
+            </span>
+          </span>
+          <span className={`relative h-7 w-12 shrink-0 rounded-full transition ${geofenced ? 'bg-sage' : 'bg-ink/15'}`}>
+            <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${geofenced ? 'left-6' : 'left-1'}`} />
+          </span>
+        </button>
+      )}
+      {role === 'admin' && (
+        <p className="mb-5 flex items-center gap-2 px-1 text-xs text-ink/45">
+          <MapPin size={14} /> Los perfiles de administración fichan sin restricción de ubicación.
+        </p>
+      )}
+
       <button
         onClick={save}
         disabled={busy}
@@ -147,6 +180,11 @@ export default function AdminTeam() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [confirming, setConfirming] = useState(null) // perfil a desactivar
+  const [geofenceOpen, setGeofenceOpen] = useState(false)
+  const [timesFor, setTimesFor] = useState(null) // empleado cuyo fichaje se corrige
+
+  // Catch-up: cierra turnos olvidados de días anteriores al abrir el equipo.
+  useEffect(() => { reconcileOpenShifts().catch(() => {}) }, [])
 
   const all = emp.data || []
   const active = all.filter((e) => e.active)
@@ -186,6 +224,18 @@ export default function AdminTeam() {
         Equipo · perfiles
       </SectionTitle>
 
+      {/* Geocerca del gimnasio: punto y radio donde el equipo puede fichar */}
+      <button
+        onClick={() => setGeofenceOpen(true)}
+        className="flex w-full items-center gap-3 rounded-2xl bg-white p-4 text-left shadow-card ring-1 ring-ink/[0.05] transition active:scale-[0.99]"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-bronze/12 text-bronze-dark"><MapPin size={20} /></span>
+        <span className="flex-1">
+          <span className="block font-semibold text-ink">Geocerca del gimnasio</span>
+          <span className="block text-xs text-ink/45">Define dónde y con qué radio puede fichar el equipo</span>
+        </span>
+      </button>
+
       {emp.loading ? (
         <div className="flex justify-center py-10"><Spinner className="h-7 w-7" /></div>
       ) : active.length === 0 ? (
@@ -206,6 +256,13 @@ export default function AdminTeam() {
                         <p className="truncate font-semibold text-ink">{e.name}{isBirthdayToday(e.birth_date) && <span title="Hoy es su cumpleaños"> 🎂</span>}{e.id === me?.id && <span className="ml-1.5 text-xs font-normal text-ink/35">(tú)</span>}</p>
                         <p className="text-xs text-ink/40">Toca para editar</p>
                       </div>
+                    </button>
+                    <button
+                      onClick={() => setTimesFor(e)}
+                      aria-label={`Corregir fichajes de ${e.name}`}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-ink/55 transition active:scale-90"
+                    >
+                      <Clock size={18} />
                     </button>
                     {e.id !== me?.id && (
                       <button
@@ -252,6 +309,9 @@ export default function AdminTeam() {
         editing={editing}
         onSaved={() => emp.reload(true)}
       />
+
+      <GeofenceEditor open={geofenceOpen} onClose={() => setGeofenceOpen(false)} />
+      <TimeEntriesEditor open={!!timesFor} onClose={() => setTimesFor(null)} employee={timesFor} />
 
       <ConfirmSheet
         open={!!confirming}

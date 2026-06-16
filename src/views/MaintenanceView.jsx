@@ -5,13 +5,14 @@ import Sheet from '../components/Sheet'
 import SpeedDial from '../components/SpeedDial'
 import ReportIncident from '../components/ReportIncident'
 import AnnouncementSheet from '../components/AnnouncementSheet'
+import GeoGate from '../components/GeoGate'
 import { listMaintenance, updateMaintenance, activeAnnouncements, listAreas } from '../lib/api'
 import { useData } from '../lib/useData'
 import { useSession } from '../state/session'
 import { useToast } from '../components/Toast'
 import { AnnouncementCard } from '../components/cards'
 import { BirthdayNotice } from '../components/Birthday'
-import { Wrench, Alert, Check, Clock, User, Megaphone, Plus, Pencil } from '../components/icons'
+import { Wrench, Alert, Check, Clock, User, Megaphone, Plus, Pencil, Search } from '../components/icons'
 import { relativeTime, timeHM } from '../lib/date'
 
 const STATUS = {
@@ -76,6 +77,8 @@ export default function MaintenanceView() {
   const ann = useData(() => activeAnnouncements('maintenance'), [], { interval: 60000 })
   const areas = useData(listAreas, [])
   const [areaFilter, setAreaFilter] = useState(null) // null = todas las áreas
+  const [query, setQuery] = useState('')             // búsqueda por texto
+  const [donePeriod, setDonePeriod] = useState(30)   // días hacia atrás en Resueltas
   const [resolving, setResolving] = useState(null)
   const [note, setNote] = useState('')
   const [noting, setNoting] = useState(null)   // tarea a la que se le añade/edita nota
@@ -97,10 +100,14 @@ export default function MaintenanceView() {
     } catch { toast('No se pudo guardar', 'error') } finally { setBusy(false) }
   }
 
-  const list = (inc.data || []).filter((i) => !areaFilter || i.area === areaFilter)
+  const q = query.trim().toLowerCase()
+  const matchesQ = (i) => !q || `${i.title} ${i.zone || ''} ${i.area || ''} ${i.description || ''}`.toLowerCase().includes(q)
+  const list = (inc.data || []).filter((i) => (!areaFilter || i.area === areaFilter) && matchesQ(i))
   const pending = list.filter((i) => i.status === 'pending')
   const inProgress = list.filter((i) => i.status === 'in_progress')
-  const done = list.filter((i) => i.status === 'done')
+  const doneSince = Date.now() - donePeriod * 86400000
+  const done = list.filter((i) => i.status === 'done' &&
+    (donePeriod === 0 || new Date(i.resolved_at || i.created_at).getTime() >= doneSince))
 
   async function start(i) {
     try {
@@ -135,6 +142,7 @@ export default function MaintenanceView() {
     <Screen>
       <Header subtitle="Mantenimiento" />
       <div className="mx-auto max-w-md space-y-5 px-4 pt-4">
+       <GeoGate employee={employee}>
         <BirthdayNotice />
         {/* Resumen */}
         <div className="grid grid-cols-3 gap-3">
@@ -148,6 +156,17 @@ export default function MaintenanceView() {
               <p className="mt-1.5 text-xs font-semibold text-ink/45">{s.label}</p>
             </Card>
           ))}
+        </div>
+
+        {/* Búsqueda en el histórico (título, zona, área, descripción) */}
+        <div className="relative">
+          <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/30" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar parte…"
+            className="field !pl-10"
+          />
         </div>
 
         {areas.data && areas.data.length > 1 && (
@@ -207,6 +226,19 @@ export default function MaintenanceView() {
             )}
             {done.length > 0 && (
               <CollapsibleSection icon={Check} title="Resueltas" right={<Pill color="sage">{done.length}</Pill>} persistKey="b13.mant.done" defaultOpen={false}>
+                <div className="mb-3 flex gap-2">
+                  {[{ d: 7, l: '7 días' }, { d: 30, l: '30 días' }, { d: 0, l: 'Todas' }].map((o) => (
+                    <button
+                      key={o.d}
+                      onClick={() => setDonePeriod(o.d)}
+                      className={`flex-1 rounded-xl py-2 text-xs font-bold transition active:scale-95 ${
+                        donePeriod === o.d ? 'bg-ink text-white' : 'bg-ink/5 text-ink/55'
+                      }`}
+                    >
+                      {o.l}
+                    </button>
+                  ))}
+                </div>
                 <div className="space-y-3">
                   {done.map((i) => <IncidentCard key={i.id} inc={i} onStart={start} onResolve={openResolve} onNote={openNote} />)}
                 </div>
@@ -215,6 +247,7 @@ export default function MaintenanceView() {
             {!list.length && <EmptyState icon={Wrench} title="Todo en orden" subtitle="No hay incidencias reportadas." />}
           </>
         )}
+       </GeoGate>
       </div>
 
       <SpeedDial

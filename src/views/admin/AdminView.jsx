@@ -16,20 +16,41 @@ import ScheduleScreen from '../ScheduleScreen'
 import { useSession } from '../../state/session'
 import { Activity, Megaphone, Settings, Wrench, Calendar, BarChart, User, Chat, Spray, Alert } from '../../components/icons'
 
+// 6 pestañas fijas (caben sin scroll): Stats vive dentro de Resumen y
+// Feedback dentro de Avisos, vía control segmentado. Nada queda oculto.
 const TABS = [
   { key: 'dash', label: 'Resumen', icon: Activity },
   { key: 'horario', label: 'Horarios', icon: Calendar },
   { key: 'inc', label: 'Incidencias', icon: Wrench },
-  { key: 'feedback', label: 'Feedback', icon: Chat },
-  { key: 'stats', label: 'Stats', icon: BarChart },
-  { key: 'ann', label: 'Avisos', icon: Megaphone },
+  { key: 'comm', label: 'Avisos', icon: Megaphone },
   { key: 'equipo', label: 'Equipo', icon: User },
   { key: 'tpl', label: 'Plantillas', icon: Settings },
 ]
 
+// Control segmentado para alternar dos sub-vistas dentro de una pestaña.
+function SubTabs({ options, value, onChange }) {
+  return (
+    <div className="mb-4 flex gap-1 rounded-2xl bg-ink/[0.05] p-1">
+      {options.map((o) => (
+        <button
+          key={o.key}
+          onClick={() => onChange(o.key)}
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-bold transition ${
+            value === o.key ? 'bg-white text-ink shadow-card' : 'text-ink/50'
+          }`}
+        >
+          <o.icon size={15} /> {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function AdminView() {
   const { employee } = useSession()
   const [tab, setTab] = useState('dash')
+  const [dashView, setDashView] = useState('hoy')   // hoy | hist (Stats)
+  const [commView, setCommView] = useState('avisos') // avisos | feedback
   const [annOpen, setAnnOpen] = useState(false)
   const [cleanOpen, setCleanOpen] = useState(false)
   const [maintOpen, setMaintOpen] = useState(false)
@@ -39,12 +60,26 @@ export default function AdminView() {
     <Screen>
       <Header subtitle="Panel de control" />
       <div className="mx-auto max-w-md px-4 pt-4">
-        {tab === 'dash' && <AdminDashboard />}
+        {tab === 'dash' && (
+          <>
+            <SubTabs
+              options={[{ key: 'hoy', label: 'Hoy', icon: Activity }, { key: 'hist', label: 'Histórico', icon: BarChart }]}
+              value={dashView} onChange={setDashView}
+            />
+            {dashView === 'hoy' ? <AdminDashboard /> : <AdminStats />}
+          </>
+        )}
         {tab === 'horario' && <ScheduleScreen editable />}
         {tab === 'inc' && <AdminIncidents />}
-        {tab === 'feedback' && <AdminFeedback />}
-        {tab === 'stats' && <AdminStats />}
-        {tab === 'ann' && <AdminAnnouncements />}
+        {tab === 'comm' && (
+          <>
+            <SubTabs
+              options={[{ key: 'avisos', label: 'Avisos', icon: Megaphone }, { key: 'feedback', label: 'Feedback', icon: Chat }]}
+              value={commView} onChange={setCommView}
+            />
+            {commView === 'avisos' ? <AdminAnnouncements /> : <AdminFeedback />}
+          </>
+        )}
         {tab === 'equipo' && <AdminTeam />}
         {tab === 'tpl' && <AdminTemplates />}
       </div>

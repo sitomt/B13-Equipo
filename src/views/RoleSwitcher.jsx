@@ -41,7 +41,7 @@ export default function RoleSwitcher() {
   function back() { setSel(null); setFirstPin(''); setPhase('first') }
 
   function enterApp(emp, extra = {}) {
-    login({ id: emp.id, name: emp.name, role: emp.role, color: emp.color, photo_url: emp.photo_url || null, ...extra })
+    login({ id: emp.id, name: emp.name, role: emp.role, color: emp.color, photo_url: emp.photo_url || null, geofenced: emp.geofenced ?? true, ...extra })
   }
 
   async function handleComplete(pin) {
