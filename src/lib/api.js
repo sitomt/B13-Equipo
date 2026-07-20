@@ -560,6 +560,60 @@ export async function deleteShift(id) {
   if (error) throw error
 }
 
+// ---------- FRANJAS HORARIAS DEL GYM (filas del cuadrante) ----------
+export async function listTimeBands() {
+  const { data, error } = await supabase
+    .from('gym_time_bands')
+    .select('*')
+    .eq('active', true)
+    .order('position')
+    .order('start_time')
+  if (error) throw error
+  return data
+}
+
+export async function createTimeBand(band) {
+  const { data, error } = await supabase.from('gym_time_bands').insert(band).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateTimeBand(id, patch) {
+  const { error } = await supabase.from('gym_time_bands').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+// Si la franja tiene turnos vinculados se desactiva (los turnos conservan sus horas);
+// si no, se borra de verdad.
+export async function deleteTimeBand(id) {
+  const { count, error: cErr } = await supabase
+    .from('shifts')
+    .select('id', { count: 'exact', head: true })
+    .eq('band_id', id)
+  if (cErr) throw cErr
+  if (count > 0) {
+    const { error } = await supabase.from('gym_time_bands').update({ active: false }).eq('id', id)
+    if (error) throw error
+  } else {
+    const { error } = await supabase.from('gym_time_bands').delete().eq('id', id)
+    if (error) throw error
+  }
+}
+
+// Asignación de un empleado a franja×día (flujo de 3 toques del editor).
+// Copia las horas de la franja al turno: cambiar la franja después no altera
+// los turnos ya asignados.
+export async function assignBandShift({ employeeId, date, band, createdBy }) {
+  return createShift({
+    employee_id: employeeId,
+    work_date: date,
+    start_time: band.start_time,
+    end_time: band.end_time,
+    band_id: band.id,
+    created_by: createdBy,
+  })
+}
+
 // ---------- PUBLICACIÓN DE HORARIO POR SEMANA ----------
 export async function getScheduleWeek(weekStart) {
   const { data, error } = await supabase

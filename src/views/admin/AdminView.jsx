@@ -1,50 +1,33 @@
 import { useState } from 'react'
 import { Header, Screen } from '../../components/AppShell'
 import BottomNav from '../../components/BottomNav'
-import SpeedDial from '../../components/SpeedDial'
+import { SegmentedControl } from '../../components/controls'
 import AnnouncementSheet from '../../components/AnnouncementSheet'
 import CleaningRequest from '../../components/CleaningRequest'
 import ReportIncident from '../../components/ReportIncident'
 import AdminDashboard from './AdminDashboard'
 import AdminIncidents from './AdminIncidents'
 import AdminAnnouncements from './AdminAnnouncements'
-import AdminTemplates from './AdminTemplates'
+import AgendaOverview from './AgendaOverview'
+import AgendaEditorScreen from './AgendaEditorScreen'
 import AdminStats from './AdminStats'
-import AdminTeam from './AdminTeam'
 import AdminFeedback from './AdminFeedback'
 import ScheduleScreen from '../ScheduleScreen'
+import ScheduleEditorScreen from '../schedule/ScheduleEditorScreen'
 import { useSession } from '../../state/session'
-import { Activity, Megaphone, Settings, Wrench, Calendar, BarChart, User, Chat, Spray, Alert } from '../../components/icons'
+import { Activity, Megaphone, Wrench, Calendar, BarChart, Chat, Spray, Alert, Book, Pencil } from '../../components/icons'
 
-// 6 pestañas fijas (caben sin scroll): Stats vive dentro de Resumen y
-// Feedback dentro de Avisos, vía control segmentado. Nada queda oculto.
+// 5 pestañas de VISUALIZACIÓN (Stats vive dentro de Resumen y Feedback dentro
+// de Avisos, vía control segmentado). Equipo vive en el Perfil (avatar).
+// Toda creación/edición sale del "+" del navbar.
 const TABS = [
   { key: 'dash', label: 'Resumen', icon: Activity },
   { key: 'horario', label: 'Horarios', icon: Calendar },
   { key: 'inc', label: 'Incidencias', icon: Wrench },
   { key: 'comm', label: 'Avisos', icon: Megaphone },
-  { key: 'equipo', label: 'Equipo', icon: User },
-  { key: 'tpl', label: 'Plantillas', icon: Settings },
+  { key: 'agenda', label: 'Agenda', icon: Book },
 ]
-
-// Control segmentado para alternar dos sub-vistas dentro de una pestaña.
-function SubTabs({ options, value, onChange }) {
-  return (
-    <div className="mb-4 flex gap-1 rounded-2xl bg-ink/[0.05] p-1">
-      {options.map((o) => (
-        <button
-          key={o.key}
-          onClick={() => onChange(o.key)}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-bold transition ${
-            value === o.key ? 'bg-white text-ink shadow-card' : 'text-ink/50'
-          }`}
-        >
-          <o.icon size={15} /> {o.label}
-        </button>
-      ))}
-    </div>
-  )
-}
+const SUBTITLE = { dash: 'Panel de control', horario: 'Horarios', inc: 'Incidencias', comm: 'Avisos', agenda: 'Agenda' }
 
 export default function AdminView() {
   const { employee } = useSession()
@@ -55,50 +38,58 @@ export default function AdminView() {
   const [cleanOpen, setCleanOpen] = useState(false)
   const [maintOpen, setMaintOpen] = useState(false)
   const [incidentOpen, setIncidentOpen] = useState(false)
+  const [schedEditor, setSchedEditor] = useState(false)
+  const [agendaEditor, setAgendaEditor] = useState(false)
 
   return (
     <Screen>
-      <Header subtitle="Panel de control" />
+      <Header subtitle={SUBTITLE[tab]} primary={tab === 'dash'} />
       <div className="mx-auto max-w-md px-4 pt-4">
         {tab === 'dash' && (
           <>
-            <SubTabs
+            <SegmentedControl
+              className="mb-4"
               options={[{ key: 'hoy', label: 'Hoy', icon: Activity }, { key: 'hist', label: 'Histórico', icon: BarChart }]}
               value={dashView} onChange={setDashView}
             />
             {dashView === 'hoy' ? <AdminDashboard /> : <AdminStats />}
           </>
         )}
-        {tab === 'horario' && <ScheduleScreen editable />}
+        {tab === 'horario' && <ScheduleScreen />}
         {tab === 'inc' && <AdminIncidents />}
         {tab === 'comm' && (
           <>
-            <SubTabs
+            <SegmentedControl
+              className="mb-4"
               options={[{ key: 'avisos', label: 'Avisos', icon: Megaphone }, { key: 'feedback', label: 'Feedback', icon: Chat }]}
               value={commView} onChange={setCommView}
             />
             {commView === 'avisos' ? <AdminAnnouncements /> : <AdminFeedback />}
           </>
         )}
-        {tab === 'equipo' && <AdminTeam />}
-        {tab === 'tpl' && <AdminTemplates />}
+        {tab === 'agenda' && <AgendaOverview />}
       </div>
 
-      {/* Acciones rápidas del responsable: comunicar y delegar sobre la marcha. */}
-      <SpeedDial
-        actions={[
-          { icon: Megaphone, label: 'Aviso al equipo', tone: 'ink', onClick: () => setAnnOpen(true) },
-          { icon: Spray, label: 'Tarea urgente · Limpieza', tone: 'bronze', onClick: () => setCleanOpen(true) },
-          { icon: Wrench, label: 'Algo roto · Mantenimiento', tone: 'terracotta', onClick: () => setMaintOpen(true) },
-          { icon: Alert, label: 'Incidencia interna', tone: 'ink', onClick: () => setIncidentOpen(true) },
-        ]}
-      />
       <AnnouncementSheet open={annOpen} onClose={() => setAnnOpen(false)} employee={employee} />
       <CleaningRequest open={cleanOpen} onClose={() => setCleanOpen(false)} employee={employee} />
       <ReportIncident target="mantenimiento" open={maintOpen} onClose={() => setMaintOpen(false)} employee={employee} />
       <ReportIncident target="incidencia" open={incidentOpen} onClose={() => setIncidentOpen(false)} employee={employee} />
+      {schedEditor && <ScheduleEditorScreen onClose={() => setSchedEditor(false)} />}
+      {agendaEditor && <AgendaEditorScreen onClose={() => setAgendaEditor(false)} />}
 
-      <BottomNav tabs={TABS} active={tab} onChange={setTab} />
+      <BottomNav
+        tabs={TABS}
+        active={tab}
+        onChange={setTab}
+        actions={[
+          { icon: Alert, label: 'Nueva incidencia', hint: 'Interna: coaches y dirección', tone: 'ink', onClick: () => setIncidentOpen(true) },
+          { icon: Wrench, label: 'Nueva tarea de mantenimiento', hint: 'Le llega al técnico', tone: 'terracotta', onClick: () => setMaintOpen(true) },
+          { icon: Spray, label: 'Nueva tarea de limpieza', hint: 'Le llega a limpieza', tone: 'bronze', onClick: () => setCleanOpen(true) },
+          { icon: Megaphone, label: 'Nuevo aviso', hint: 'Mensaje al equipo', tone: 'ink', onClick: () => setAnnOpen(true) },
+          { icon: Calendar, label: 'Editar horarios', hint: 'Asignar turnos y publicar la semana', tone: 'bronze', onClick: () => setSchedEditor(true) },
+          { icon: Pencil, label: 'Editar agenda', hint: 'Tareas diarias y preventivas', tone: 'ink', onClick: () => setAgendaEditor(true) },
+        ]}
+      />
     </Screen>
   )
 }

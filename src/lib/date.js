@@ -93,10 +93,14 @@ export function isBirthdayToday(birthDate) {
   return birthDate.slice(5, 10) === todayMadrid().slice(5, 10)
 }
 
-export function greetingMadrid() {
-  const h = +new Intl.DateTimeFormat('en-US', {
+export function hourMadrid() {
+  return +new Intl.DateTimeFormat('en-US', {
     timeZone: TZ, hour: '2-digit', hour12: false,
   }).format(new Date())
+}
+
+export function greetingMadrid() {
+  const h = hourMadrid()
   if (h < 6) return 'Buenas noches'
   if (h < 14) return 'Buenos días'
   if (h < 21) return 'Buenas tardes'

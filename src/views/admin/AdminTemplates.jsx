@@ -11,7 +11,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { listAllTemplates, createTemplate, updateTemplate, deleteTemplate, reorderTemplates } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { useToast } from '../../components/Toast'
-import { Card, SectionTitle, Pill } from '../../components/ui'
+import { Card, SectionTitle, Tag } from '../../components/ui'
 import Sheet from '../../components/Sheet'
 import AdminRecurring from './AdminRecurring'
 import { Plus, Trash, Settings, Sunrise, Moon, Activity, Refresh, Clock, ChevronDown, GripVertical } from '../../components/icons'
@@ -63,8 +63,8 @@ function SortableItem({ t, onEdit, overlay = false }) {
             {t.recurrence === 'recurring' && <span className="inline-flex items-center gap-0.5 text-stone"><Refresh size={11} />{t.recurrence_label}</span>}
           </p>
         </div>
-        {t.category && <Pill color="ink">{t.category}</Pill>}
-        {!t.active && <Pill color="terracotta">inactiva</Pill>}
+        {t.category && <span className="shrink-0 text-xs font-semibold text-ink/40">{t.category}</span>}
+        {!t.active && <Tag status="pending">inactiva</Tag>}
       </button>
     </div>
   )
@@ -198,7 +198,7 @@ export default function AdminTemplates() {
                       <span className="text-xs text-ink/30 font-medium">{items.length}</span>
                       <ChevronDown size={18} className={`text-ink/30 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
                     </button>
-                    <button onClick={() => openNew(role, sec.key)} className="flex items-center gap-1 rounded-full bg-ink px-3 py-1.5 text-xs font-bold text-white active:scale-95">
+                    <button onClick={() => openNew(role, sec.key)} className="flex min-h-[44px] items-center gap-1 rounded-full bg-ink px-3.5 text-xs font-bold text-white active:scale-95">
                       <Plus size={14} /> Añadir
                     </button>
                   </div>

@@ -146,7 +146,7 @@ export default function RecurringTaskSheet({ open, onClose, employee, target = '
       <div className="mb-4 flex flex-wrap gap-2">
         {CATEGORIES.map((c) => (
           <button key={c.key} onClick={() => set({ category: draft.category === c.key ? null : c.key })}
-            className={`rounded-full px-3.5 py-2 text-sm font-semibold transition active:scale-95 ${draft.category === c.key ? 'bg-ink text-white' : 'bg-ink/5 text-ink/70'}`}>
+            className={`inline-flex items-center min-h-[44px] rounded-full px-4 text-sm font-semibold transition active:scale-95 ${draft.category === c.key ? 'bg-ink text-white' : 'bg-ink/5 text-ink/70'}`}>
             {c.label}
           </button>
         ))}
@@ -156,7 +156,7 @@ export default function RecurringTaskSheet({ open, onClose, employee, target = '
       <div className="mb-5 flex flex-wrap gap-2">
         {ZONES.map((z) => (
           <button key={z} onClick={() => set({ zone: z === draft.zone ? null : z })}
-            className={`rounded-full px-3.5 py-2 text-sm font-semibold transition active:scale-95 ${draft.zone === z ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/70'}`}>
+            className={`inline-flex items-center min-h-[44px] rounded-full px-4 text-sm font-semibold transition active:scale-95 ${draft.zone === z ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/70'}`}>
             {z}
           </button>
         ))}

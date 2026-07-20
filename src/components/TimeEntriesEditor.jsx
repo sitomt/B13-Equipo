@@ -85,7 +85,7 @@ export default function TimeEntriesEditor({ open, onClose, employee }) {
                 onBlur={(e) => { if (e.target.value && e.target.value !== hmOf(r.occurred_at)) changeTime(r, e.target.value) }}
                 className="w-24 rounded-xl bg-ink/[0.04] px-2 py-1.5 text-sm font-semibold text-ink"
               />
-              <button onClick={() => remove(r)} aria-label="Eliminar" className="flex h-9 w-9 items-center justify-center rounded-xl bg-ink/5 text-terracotta active:scale-90">
+              <button onClick={() => remove(r)} aria-label="Eliminar" className="flex h-11 w-11 items-center justify-center rounded-xl bg-ink/5 text-terracotta active:scale-90">
                 <Trash size={16} />
               </button>
             </div>
@@ -101,7 +101,7 @@ export default function TimeEntriesEditor({ open, onClose, employee }) {
             {KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
           </select>
           <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="w-24 rounded-xl bg-white px-2 py-2 text-sm font-semibold text-ink ring-1 ring-ink/[0.06]" />
-          <button onClick={add} aria-label="Añadir" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-ink text-white active:scale-90">
+          <button onClick={add} aria-label="Añadir" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink text-white active:scale-90">
             <Plus size={18} />
           </button>
         </div>

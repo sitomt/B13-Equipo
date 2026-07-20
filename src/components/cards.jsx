@@ -4,13 +4,7 @@ import { timeHM } from '../lib/date'
 import { haptic } from '../lib/haptics'
 import { useToast } from './Toast'
 import { useSession } from '../state/session'
-import { Pill } from './ui'
 import { Check, Clock, Refresh, Megaphone, Spray, User, Lock } from './icons'
-
-const CAT_COLOR = {
-  aseos: 'stone', caja: 'bronze', taquillas: 'ochre', maquinas: 'ink',
-  diaria: 'sage', semanal: 'bronze', apertura: 'ochre', cierre: 'stone', rutina: 'ink',
-}
 
 // Fila de tarea: única (checkbox) o recurrente (contador + "otra pasada").
 export function TaskRow({ item, employee, onChange }) {
@@ -92,7 +86,7 @@ export function TaskRow({ item, employee, onChange }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="truncate font-semibold text-ink">{item.title}</p>
-            {overdue && <Pill color="ochre">toca ya</Pill>}
+            {overdue && <span className="shrink-0 text-xs font-bold text-[#8a6a1e]">toca ya</span>}
           </div>
           <p className="flex flex-wrap items-center gap-1.5 text-xs text-ink/45">
             {item.recurrence_label || 'recurrente'}
@@ -110,7 +104,7 @@ export function TaskRow({ item, employee, onChange }) {
         <button
           onClick={addPass}
           disabled={busy}
-          className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold text-white transition active:scale-90 disabled:opacity-50 ${overdue ? 'bg-ochre' : 'bg-ink'}`}
+          className={`flex min-h-[44px] shrink-0 items-center rounded-full px-4 text-sm font-bold text-white transition active:scale-90 disabled:opacity-50 ${overdue ? 'bg-ochre' : 'bg-ink'}`}
         >
           Pasada +
         </button>
@@ -147,8 +141,9 @@ export function TaskRow({ item, employee, onChange }) {
           )
         )}
       </div>
+      {/* La categoría es información, no estado: texto plano discreto */}
       {item.category && !shownDone && (
-        <Pill color={CAT_COLOR[item.category] || 'ink'}>{item.category}</Pill>
+        <span className="shrink-0 text-xs font-semibold text-ink/40">{item.category}</span>
       )}
       {ownedByOther && <Lock size={16} className="text-ink/25" />}
     </button>
@@ -202,7 +197,7 @@ export function AnnouncementCard({ a }) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className={`font-display text-lg font-bold leading-tight ${high ? 'text-white' : 'text-ink'}`}>{a.title}</p>
+            <p className={`font-display text-card font-bold leading-tight ${high ? 'text-white' : 'text-ink'}`}>{a.title}</p>
           </div>
           {a.body && <p className={`mt-0.5 text-sm leading-snug ${high ? 'text-white/85' : 'text-ink/60'}`}>{a.body}</p>}
         </div>
@@ -250,7 +245,9 @@ export function AdHocCard({ task, employee, onChange }) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            {!done && urgent && <Pill color="white">URGENTE</Pill>}
+            {!done && urgent && (
+              <span className="inline-flex items-center rounded-full bg-white/20 px-2.5 py-[3px] text-xs font-bold text-white">URGENTE</span>
+            )}
             {task.zone && <span className={`text-xs font-semibold ${urgent && !done ? 'text-white/80' : 'text-ink/45'}`}>{task.zone}</span>}
           </div>
           <p className={`mt-0.5 font-bold ${done ? 'text-ink/50 line-through' : urgent ? 'text-white' : 'text-ink'}`}>{task.title}</p>

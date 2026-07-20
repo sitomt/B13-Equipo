@@ -3,7 +3,7 @@ import {
   listEmployees, listAllTemplates, rangeCompletions, rangeTimeEntries, listIncidencias, listMaintenance,
 } from '../../lib/api'
 import { useData } from '../../lib/useData'
-import { Card, CollapsibleSection, ProgressRing, Spinner, Pill, Avatar } from '../../components/ui'
+import { Card, CollapsibleSection, ProgressRing, Spinner, CountBadge, Avatar } from '../../components/ui'
 import { Activity, Refresh, Alert, Clock, Check, User } from '../../components/icons'
 import { weekBounds, weekdayOf, isTodayStr, dowLabel, todayMadrid } from '../../lib/date'
 import { workedMinutesByEmployee, fmtMinutes } from '../../lib/hours'
@@ -128,7 +128,7 @@ export default function AdminStats() {
       </CollapsibleSection>
 
       {/* Pendiente hoy */}
-      <CollapsibleSection icon={Alert} title="¿Queda algo por hacer hoy?" right={<Pill color={data.pendingToday.length ? 'ochre' : 'sage'}>{data.pendingToday.length}</Pill>} persistKey="b13.adminstats.pending">
+      <CollapsibleSection icon={Alert} title="¿Queda algo por hacer hoy?" right={<CountBadge tone={data.pendingToday.length ? 'ochre' : 'sage'}>{data.pendingToday.length}</CountBadge>} persistKey="b13.adminstats.pending">
         {data.pendingToday.length === 0 ? (
           <Card className="flex items-center gap-2 p-4 text-sage"><Check size={18} /><span className="text-sm font-semibold">Todo hecho por hoy 🎉</span></Card>
         ) : (

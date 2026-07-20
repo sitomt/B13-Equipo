@@ -34,6 +34,13 @@ export default {
         display: ['"Darker Grotesque"', 'system-ui', 'sans-serif'],
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
+      // Jerarquía tipográfica de 4 niveles (pantalla > sección > card > contenido).
+      // Siempre con font-display en títulos; el contenido usa text-base/text-sm.
+      fontSize: {
+        screen: ['2.25rem', { lineHeight: '1.05', letterSpacing: '-0.02em' }],
+        section: ['1.375rem', { lineHeight: '1.15', letterSpacing: '-0.01em' }],
+        card: ['1.125rem', { lineHeight: '1.2' }],
+      },
       borderRadius: {
         xl2: '1.25rem',
         xl3: '1.75rem',

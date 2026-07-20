@@ -6,8 +6,9 @@ import { fmtMinutes, workedMinutesForDay } from '../lib/hours'
 import { isGeofenced, fenceActive, getPosition, evaluate, watchAway, geoErrorMessage } from '../lib/geo'
 import { haptic } from '../lib/haptics'
 import { ConfirmSheet } from './ui'
+import Sheet from './Sheet'
 import { useToast } from './Toast'
-import { Power, Coffee, Utensils, Clock, LogOut, MapPin } from './icons'
+import { Power, Coffee, Utensils, Clock, LogOut, MapPin, ChevronDown } from './icons'
 
 const STATUS_META = {
   out: { label: 'Sin fichar', color: 'text-ink/40', dot: 'bg-ink/25' },
@@ -68,6 +69,7 @@ export default function Fichaje({ employee, onChange }) {
   const { data: fence } = useData(getGeofence, [])
   const [busy, setBusy] = useState(false)
   const [confirmOut, setConfirmOut] = useState(false)
+  const [manageOpen, setManageOpen] = useState(false) // sheet de acciones en modo comprimido
   const [now, setNow] = useState(Date.now())
   const [geoMsg, setGeoMsg] = useState(null) // aviso de geocerca bajo la tarjeta
   const toast = useToast()
@@ -168,12 +170,92 @@ export default function Fichaje({ employee, onChange }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geoOn, status, fence])
 
+  const confirm = (
+    <ConfirmSheet
+      open={confirmOut}
+      onClose={() => setConfirmOut(false)}
+      onConfirm={() => act('clock_out', 'Salida fichada')}
+      title="¿Fichar salida?"
+      message="Se cerrará tu jornada de hoy. Si aún no has terminado, puedes seguir en turno."
+      confirmLabel="Fichar salida"
+      tone="danger"
+    />
+  )
+
+  // ── Turno activo: barra COMPRIMIDA. El fichaje ya está hecho; cede el
+  // protagonismo al día y las acciones (pausa/comida/salir) viven en un sheet.
+  if (live) {
+    return (
+      <>
+        <button
+          onClick={() => { haptic('tap'); setManageOpen(true) }}
+          className="relative flex min-h-[56px] w-full items-center gap-3 overflow-hidden rounded-xl2 bg-ink px-4 text-left text-white shadow-card transition-enter active:scale-[0.98]"
+        >
+          <div className="brand-glow pointer-events-none absolute inset-0" aria-hidden="true" />
+          <span className={`relative h-2.5 w-2.5 shrink-0 rounded-full ${meta.dot} animate-pulse`} />
+          <span className="relative min-w-0 flex-1">
+            <span className="block truncate text-sm font-bold">{meta.label}</span>
+            {clockInEntry && (
+              <span className="block text-[11px] text-white/50">desde {timeHM(clockInEntry.occurred_at)}</span>
+            )}
+          </span>
+          <span className="tabular relative font-display text-xl font-extrabold tracking-tight">{worked}</span>
+          <ChevronDown size={16} className="relative shrink-0 -rotate-90 text-white/40" />
+        </button>
+
+        {/* Aviso de geocerca aunque la barra esté comprimida */}
+        {geoOn && geoMsg && (
+          <div className="mt-2 flex items-start gap-2 rounded-2xl bg-terracotta/10 px-3 py-2.5 text-[13px] font-semibold text-terracotta ring-1 ring-terracotta/25">
+            <MapPin size={16} className="mt-0.5 shrink-0" />
+            <span>{geoMsg}</span>
+          </div>
+        )}
+
+        <Sheet open={manageOpen} onClose={() => setManageOpen(false)} title="Tu fichaje">
+          <div className="mb-4 flex items-baseline gap-2">
+            <span className="tabular font-display text-4xl font-extrabold leading-none tracking-tight text-ink">{worked}</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink/40">
+              {status === 'break' ? 'pausa en curso' : status === 'meal' ? 'comida en curso' : 'en turno'}
+            </span>
+          </div>
+          {status === 'working' && (
+            <div className="flex gap-2 pb-2">
+              <ActionBtn icon={Coffee} label="Pausa" tone="ochre" onClick={() => { setManageOpen(false); act('break_start', 'Pausa iniciada') }} disabled={busy} />
+              <ActionBtn icon={Utensils} label="Comida" tone="stone" onClick={() => { setManageOpen(false); act('meal_start', 'Comida iniciada') }} disabled={busy} />
+              <ActionBtn icon={LogOut} label="Salir" tone="danger" onClick={() => { setManageOpen(false); setConfirmOut(true) }} disabled={busy} />
+            </div>
+          )}
+          {status === 'break' && (
+            <button
+              onClick={() => { setManageOpen(false); act('break_end', 'De vuelta al turno') }}
+              disabled={busy}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-4 text-lg font-extrabold text-white transition-enter active:scale-95 disabled:opacity-50"
+            >
+              <Power size={24} /> Terminar pausa
+            </button>
+          )}
+          {status === 'meal' && (
+            <button
+              onClick={() => { setManageOpen(false); act('meal_end', 'De vuelta al turno') }}
+              disabled={busy}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-4 text-lg font-extrabold text-white transition-enter active:scale-95 disabled:opacity-50"
+            >
+              <Power size={24} /> Terminar comida
+            </button>
+          )}
+        </Sheet>
+        {confirm}
+      </>
+    )
+  }
+
+  // ── Sin fichar (o jornada terminada): el fichaje es el protagonista.
   return (
     <div className="relative overflow-hidden rounded-xl2 bg-ink p-4 text-white shadow-card">
       <div className="brand-glow pointer-events-none absolute inset-0" aria-hidden="true" />
       <div className="relative mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className={`h-2.5 w-2.5 rounded-full ${meta.dot} ${status !== 'out' ? 'animate-pulse' : ''}`} />
+          <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
           <span className="font-display text-xl font-bold">{meta.label}</span>
         </div>
         {clockInEntry && (
@@ -183,58 +265,23 @@ export default function Fichaje({ employee, onChange }) {
         )}
       </div>
 
-      {/* Cronómetro en vivo del turno: lo que el empleado mira de un vistazo */}
-      {(worked || finishedTotal) && (
+      {finishedTotal && (
         <div className="relative mb-3 flex items-baseline gap-2">
-          <span className="tabular font-display text-4xl font-extrabold leading-none tracking-tight">
-            {worked || finishedTotal}
-          </span>
-          <span className="text-xs font-semibold uppercase tracking-wide text-white/45">
-            {status === 'break' ? 'pausa en curso' : status === 'meal' ? 'comida en curso' : finished ? 'trabajadas hoy' : 'en turno'}
-          </span>
+          <span className="tabular font-display text-4xl font-extrabold leading-none tracking-tight">{finishedTotal}</span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-white/45">trabajadas hoy</span>
         </div>
       )}
 
-      {status === 'out' && (
-        <button
-          onClick={clockIn}
-          disabled={busy}
-          className={`relative flex w-full items-center justify-center gap-2 rounded-2xl py-4 font-extrabold transition-enter active:scale-95 disabled:opacity-50 ${
-            finished ? 'bg-white/10 text-base text-white/80' : 'bg-sage text-lg text-white'
-          }`}
-        >
-          {geoOn ? <MapPin size={22} /> : <Power size={24} />}
-          {busy && geoOn ? 'Comprobando ubicación…' : finished ? 'Volver a fichar entrada' : 'Fichar entrada'}
-        </button>
-      )}
-
-      {status === 'working' && (
-        <div className="relative flex gap-2">
-          <ActionBtn icon={Coffee} label="Pausa" tone="ochre" onClick={() => act('break_start', 'Pausa iniciada')} disabled={busy} />
-          <ActionBtn icon={Utensils} label="Comida" tone="stone" onClick={() => act('meal_start', 'Comida iniciada')} disabled={busy} />
-          <ActionBtn icon={LogOut} label="Salir" tone="danger" onClick={() => setConfirmOut(true)} disabled={busy} />
-        </div>
-      )}
-
-      {status === 'break' && (
-        <button
-          onClick={() => act('break_end', 'De vuelta al turno')}
-          disabled={busy}
-          className="relative flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-4 text-lg font-extrabold text-ink transition-enter active:scale-95 disabled:opacity-50"
-        >
-          <Power size={24} /> Terminar pausa
-        </button>
-      )}
-
-      {status === 'meal' && (
-        <button
-          onClick={() => act('meal_end', 'De vuelta al turno')}
-          disabled={busy}
-          className="relative flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-4 text-lg font-extrabold text-ink transition-enter active:scale-95 disabled:opacity-50"
-        >
-          <Power size={24} /> Terminar comida
-        </button>
-      )}
+      <button
+        onClick={clockIn}
+        disabled={busy}
+        className={`relative flex w-full items-center justify-center gap-2 rounded-2xl py-4 font-extrabold transition-enter active:scale-95 disabled:opacity-50 ${
+          finished ? 'bg-white/10 text-base text-white/80' : 'bg-sage text-lg text-white'
+        }`}
+      >
+        {geoOn ? <MapPin size={22} /> : <Power size={24} />}
+        {busy && geoOn ? 'Comprobando ubicación…' : finished ? 'Volver a fichar entrada' : 'Fichar entrada'}
+      </button>
 
       {/* Aviso de geocerca: fuera de radio, alejándose, o error de ubicación */}
       {geoOn && geoMsg && (
@@ -243,21 +290,13 @@ export default function Fichaje({ employee, onChange }) {
           <span>{geoMsg}</span>
         </div>
       )}
-      {geoOn && status === 'out' && !geoMsg && (
+      {geoOn && !geoMsg && (
         <p className="relative mt-2.5 flex items-center justify-center gap-1.5 text-xs font-medium text-white/45">
           <MapPin size={13} /> Fichaje activado por ubicación del gimnasio
         </p>
       )}
 
-      <ConfirmSheet
-        open={confirmOut}
-        onClose={() => setConfirmOut(false)}
-        onConfirm={() => act('clock_out', 'Salida fichada')}
-        title="¿Fichar salida?"
-        message="Se cerrará tu jornada de hoy. Si aún no has terminado, puedes seguir en turno."
-        confirmLabel="Fichar salida"
-        tone="danger"
-      />
+      {confirm}
     </div>
   )
 }

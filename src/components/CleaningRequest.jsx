@@ -57,7 +57,7 @@ export default function CleaningRequest({ open, onClose, employee, onCreated }) 
           <button
             key={z}
             onClick={() => setZone(z === zone ? null : z)}
-            className={`rounded-full px-3.5 py-2 text-sm font-semibold transition active:scale-95 ${
+            className={`inline-flex items-center min-h-[44px] rounded-full px-4 text-sm font-semibold transition active:scale-95 ${
               zone === z ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/70'
             }`}
           >

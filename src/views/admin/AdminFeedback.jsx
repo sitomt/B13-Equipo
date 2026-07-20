@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { listFeedback, updateFeedback, deleteFeedback } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { useToast } from '../../components/Toast'
-import { Card, SectionTitle, Pill, Spinner, EmptyState } from '../../components/ui'
+import { Card, SectionTitle, Tag, CountBadge, Spinner, EmptyState } from '../../components/ui'
 import { Chat, User, Check, Trash } from '../../components/icons'
 import { relativeTime, dateTime } from '../../lib/date'
 
@@ -26,8 +26,8 @@ function FeedbackCard({ f, onToggle, onDelete }) {
     <Card className={`overflow-hidden ${done ? 'opacity-70' : ''}`}>
       <div className="p-4">
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
-          <Pill color={meta.pill}>{meta.label}</Pill>
-          {done && <Pill color="sage">Gestionado</Pill>}
+          <span className="text-xs font-semibold text-ink/45">{meta.label}</span>
+          {done && <Tag status="done">Gestionado</Tag>}
           <span className="ml-auto text-xs text-ink/35">{relativeTime(f.created_at)}</span>
         </div>
         <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{f.message}</p>
@@ -82,7 +82,7 @@ export default function AdminFeedback() {
 
   return (
     <div className="space-y-4 pb-24">
-      <SectionTitle icon={Chat} right={<Pill color={pending.length ? 'ochre' : 'sage'}>{pending.length} sin ver</Pill>}>
+      <SectionTitle icon={Chat} right={<CountBadge tone={pending.length ? 'ochre' : 'sage'}>{pending.length} sin ver</CountBadge>}>
         Feedback del equipo
       </SectionTitle>
 
@@ -91,7 +91,7 @@ export default function AdminFeedback() {
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
-            className={`flex-1 rounded-2xl py-2.5 text-sm font-bold transition active:scale-95 ${filter === f.key ? 'bg-ink text-white' : 'bg-ink/5 text-ink/60'}`}
+            className={`flex-1 rounded-2xl min-h-[44px] text-sm font-bold transition active:scale-95 ${filter === f.key ? 'bg-ink text-white' : 'bg-ink/5 text-ink/60'}`}
           >
             {f.label}
           </button>

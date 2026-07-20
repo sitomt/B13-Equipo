@@ -19,7 +19,8 @@ export default function Sheet({ open, onClose, title, children, maxH = '85vh' })
           <h3 className="font-display text-2xl font-extrabold tracking-tight">{title}</h3>
           <button
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-ink/5 text-ink/60 active:scale-90"
+            aria-label="Cerrar"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-ink/5 text-ink/60 active:scale-90"
           >
             <X size={20} />
           </button>

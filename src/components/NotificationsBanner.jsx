@@ -62,7 +62,7 @@ export default function NotificationsBanner() {
       >
         Activar
       </button>
-      <button onClick={dismiss} aria-label="Descartar" className="shrink-0 p-1 text-ink/30 active:scale-90">
+      <button onClick={dismiss} aria-label="Descartar" className="flex h-11 w-11 shrink-0 items-center justify-center text-ink/30 active:scale-90">
         <X size={16} />
       </button>
     </div>

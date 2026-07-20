@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import Sheet from '../../components/Sheet'
-import { Card, SectionTitle, CollapsibleSection, Pill, Spinner, ConfirmSheet, EmptyState, Avatar } from '../../components/ui'
+import { Card, SectionTitle, CollapsibleSection, CountBadge, Spinner, ConfirmSheet, EmptyState, Avatar } from '../../components/ui'
 import { listAllEmployees, createEmployee, updateEmployee, deactivateEmployee, clearPin, reconcileOpenShifts } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { useSession } from '../../state/session'
@@ -88,7 +88,7 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
             <button
               key={r}
               onClick={() => setRole(r)}
-              className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold transition active:scale-95 ${
+              className={`flex items-center gap-1.5 min-h-[44px] rounded-full px-4 text-sm font-semibold transition active:scale-95 ${
                 role === r ? 'bg-ink text-white' : 'bg-ink/5 text-ink/70'
               }`}
             >
@@ -216,7 +216,7 @@ export default function AdminTeam() {
       <SectionTitle
         icon={User}
         right={
-          <button onClick={openNew} className="flex items-center gap-1 rounded-full bg-ink px-3 py-1.5 text-xs font-bold text-white transition-enter active:scale-95">
+          <button onClick={openNew} className="flex min-h-[44px] items-center gap-1 rounded-full bg-ink px-3.5 text-xs font-bold text-white transition-enter active:scale-95">
             <Plus size={13} /> Añadir
           </button>
         }
@@ -246,7 +246,7 @@ export default function AdminTeam() {
           if (!list.length) return null
           const Icon = ROLE_META[r].icon
           return (
-            <CollapsibleSection key={r} icon={Icon} title={ROLE_META[r].label} right={<Pill color="ink">{list.length}</Pill>} persistKey={`b13.team.${r}`}>
+            <CollapsibleSection key={r} icon={Icon} title={ROLE_META[r].label} right={<CountBadge tone="ink">{list.length}</CountBadge>} persistKey={`b13.team.${r}`}>
               <Card className="divide-y divide-ink/[0.06]">
                 {list.map((e) => (
                   <div key={e.id} className="flex items-center gap-3 p-3">
@@ -282,7 +282,7 @@ export default function AdminTeam() {
       )}
 
       {inactive.length > 0 && (
-        <CollapsibleSection icon={Power} title="Desactivados" right={<Pill color="ink">{inactive.length}</Pill>} persistKey="b13.team.inactivos" defaultOpen={false}>
+        <CollapsibleSection icon={Power} title="Desactivados" right={<CountBadge tone="ink">{inactive.length}</CountBadge>} persistKey="b13.team.inactivos" defaultOpen={false}>
           <Card className="divide-y divide-ink/[0.06]">
             {inactive.map((e) => (
               <div key={e.id} className="flex items-center gap-3 p-3 opacity-70">

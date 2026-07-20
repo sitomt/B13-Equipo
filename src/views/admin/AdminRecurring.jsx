@@ -3,7 +3,7 @@ import { listRecurring, deleteRecurring, updateRecurring, runDueRecurring } from
 import { useData } from '../../lib/useData'
 import { useSession } from '../../state/session'
 import { useToast } from '../../components/Toast'
-import { Card, SectionTitle, Pill, Spinner } from '../../components/ui'
+import { Card, SectionTitle, Tag, Spinner } from '../../components/ui'
 import RecurringTaskSheet from '../../components/RecurringTaskSheet'
 import { Wrench, Alert, Plus, Trash, Refresh } from '../../components/icons'
 import { recurrenceLabel, nextOccurrence } from '../../lib/date'
@@ -20,9 +20,9 @@ function PlanCard({ p, onEdit, onToggle, onDelete }) {
     <Card className="overflow-hidden">
       <button onClick={() => onEdit(p)} className="w-full p-4 text-left active:bg-ink/[0.03]">
         <div className="mb-1 flex flex-wrap items-center gap-2">
-          {p.priority === 'urgent' && <Pill color="terracotta">URGENTE</Pill>}
+          {p.priority === 'urgent' && <Tag status="urgent" />}
           {p.category && <span className="text-xs font-semibold text-ink/40">{p.category}</span>}
-          {!p.active && <Pill color="ink">inactiva</Pill>}
+          {!p.active && <span className="text-xs font-semibold text-ink/40">pausada</span>}
         </div>
         <p className="font-display text-lg font-bold leading-tight text-ink">{p.title}</p>
         {p.zone && <p className="text-sm font-semibold text-bronze-dark">{p.zone}</p>}
@@ -32,7 +32,7 @@ function PlanCard({ p, onEdit, onToggle, onDelete }) {
         </p>
       </button>
       <div className="flex items-center border-t border-ink/[0.06]">
-        <button onClick={() => onToggle(p)} className="flex-1 py-2.5 text-sm font-bold text-ink/55 active:bg-ink/[0.03]">
+        <button onClick={() => onToggle(p)} className="flex-1 min-h-[44px] text-sm font-bold text-ink/55 active:bg-ink/[0.03]">
           {p.active ? 'Pausar' : 'Reactivar'}
         </button>
         <span className="h-5 w-px bg-ink/[0.06]" />
@@ -42,7 +42,7 @@ function PlanCard({ p, onEdit, onToggle, onDelete }) {
             <button onClick={() => onDelete(p)} className="rounded-lg bg-terracotta px-2.5 py-1.5 text-xs font-extrabold text-white active:scale-95">Eliminar</button>
           </div>
         ) : (
-          <button onClick={() => setConfirmDel(true)} className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-terracotta active:bg-ink/[0.03]">
+          <button onClick={() => setConfirmDel(true)} className="flex flex-1 items-center justify-center gap-1.5 min-h-[44px] text-sm font-bold text-terracotta active:bg-ink/[0.03]">
             <Trash size={15} /> Eliminar
           </button>
         )}
@@ -100,7 +100,7 @@ export default function AdminRecurring() {
               icon={Icon}
               right={
                 <button onClick={() => setSheet({ target: g.target, editing: null })}
-                  className="flex items-center gap-1 rounded-full bg-ink px-3 py-1.5 text-xs font-bold text-white active:scale-95">
+                  className="flex min-h-[44px] items-center gap-1 rounded-full bg-ink px-3.5 text-xs font-bold text-white active:scale-95">
                   <Plus size={14} /> Añadir
                 </button>
               }

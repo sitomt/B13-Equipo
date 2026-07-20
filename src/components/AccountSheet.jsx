@@ -2,20 +2,25 @@ import { useState, useEffect } from 'react'
 import Sheet from './Sheet'
 import PinPad from './PinPad'
 import PhotoPicker from './PhotoPicker'
-import { Avatar } from './ui'
+import UtilitiesOverlay from './UtilitiesOverlay'
+import TeamOverlay from '../views/admin/TeamOverlay'
+import { Avatar, ConfirmSheet } from './ui'
 import { uploadPhoto, updateEmployee, changePin } from '../lib/api'
 import { enablePush, notificationsEnabled, pushSupported } from '../lib/push'
 import { useToast } from './Toast'
 import { useSession } from '../state/session'
-import { Key, Chevron, Camera, Bell, Check, Book } from './icons'
+import { Key, Chevron, Camera, Bell, Check, Book, User, LogOut } from './icons'
 
-// Ajustes de la cuenta del propio empleado: cambiar foto de perfil y cambiar PIN.
-// Un único Sheet con dos modos (menú | pin) para no anidar hojas.
+// Perfil del empleado: foto, PIN, notificaciones, tutorial, utilidades,
+// equipo (solo admin) y cerrar sesión. Un único Sheet con modos para no anidar hojas.
 export default function AccountSheet({ open, onClose, employee }) {
   const toast = useToast()
-  const { login } = useSession()
+  const { login, logout } = useSession()
   const [mode, setMode] = useState('menu') // 'menu' | 'photo' | 'pin'
   const [busy, setBusy] = useState(false)
+  const [utils, setUtils] = useState(false)         // overlay Utilidades
+  const [team, setTeam] = useState(false)           // overlay Equipo (admin)
+  const [confirmOut, setConfirmOut] = useState(false)
 
   // --- notificaciones push ---
   const [notifOn, setNotifOn] = useState(false)
@@ -82,7 +87,19 @@ export default function AccountSheet({ open, onClose, employee }) {
   }
 
   return (
-    <Sheet open={open} onClose={close} title={mode === 'pin' ? 'Cambiar PIN' : mode === 'photo' ? 'Cambiar foto' : 'Mi cuenta'}>
+    <>
+      {utils && <UtilitiesOverlay onClose={() => setUtils(false)} />}
+      {team && <TeamOverlay onClose={() => setTeam(false)} />}
+      <ConfirmSheet
+        open={confirmOut}
+        onClose={() => setConfirmOut(false)}
+        onConfirm={logout}
+        title="Cerrar sesión"
+        message="¿Seguro que quieres cambiar de usuario?"
+        confirmLabel="Cerrar sesión"
+        tone="danger"
+      />
+    <Sheet open={open} onClose={close} title={mode === 'pin' ? 'Cambiar PIN' : mode === 'photo' ? 'Cambiar foto' : 'Mi perfil'}>
       {mode === 'menu' && (
         <div>
           <div className="mb-5 flex flex-col items-center">
@@ -130,13 +147,51 @@ export default function AccountSheet({ open, onClose, employee }) {
           )}
 
           <button
+            onClick={() => { onClose(); setUtils(true) }}
+            className="mb-3 flex w-full items-center gap-3 rounded-2xl bg-ink/[0.04] p-4 text-left transition active:scale-[0.99]"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-bronze/12 text-bronze-dark"><Book size={20} /></span>
+            <span className="flex-1">
+              <span className="block font-semibold text-ink">Utilidades y manuales</span>
+              <span className="block text-xs text-ink/45">Guías y documentos del club</span>
+            </span>
+            <Chevron size={18} className="text-ink/25" />
+          </button>
+
+          {employee?.role === 'admin' && (
+            <button
+              onClick={() => { onClose(); setTeam(true) }}
+              className="mb-3 flex w-full items-center gap-3 rounded-2xl bg-ink/[0.04] p-4 text-left transition active:scale-[0.99]"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-bronze/12 text-bronze-dark"><User size={20} /></span>
+              <span className="flex-1">
+                <span className="block font-semibold text-ink">Equipo</span>
+                <span className="block text-xs text-ink/45">Perfiles de coaches, limpieza y mantenimiento</span>
+              </span>
+              <Chevron size={18} className="text-ink/25" />
+            </button>
+          )}
+
+          <button
             onClick={() => { onClose(); window.dispatchEvent(new Event('b13:onboarding')) }}
-            className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-ink/[0.04] p-4 text-left transition active:scale-[0.99]"
+            className="flex w-full items-center gap-3 rounded-2xl bg-ink/[0.04] p-4 text-left transition active:scale-[0.99]"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-bronze/12 text-bronze-dark"><Book size={20} /></span>
             <span className="flex-1">
               <span className="block font-semibold text-ink">Ver tutorial</span>
               <span className="block text-xs text-ink/45">Repasa cómo funciona la app</span>
+            </span>
+            <Chevron size={18} className="text-ink/25" />
+          </button>
+
+          <button
+            onClick={() => { onClose(); setConfirmOut(true) }}
+            className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-terracotta/[0.06] p-4 text-left transition active:scale-[0.99]"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-terracotta/12 text-terracotta"><LogOut size={20} /></span>
+            <span className="flex-1">
+              <span className="block font-semibold text-terracotta">Cerrar sesión</span>
+              <span className="block text-xs text-ink/45">Cambiar de usuario</span>
             </span>
             <Chevron size={18} className="text-ink/25" />
           </button>
@@ -169,5 +224,6 @@ export default function AccountSheet({ open, onClose, employee }) {
         </div>
       )}
     </Sheet>
+    </>
   )
 }

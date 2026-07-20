@@ -6,7 +6,7 @@ import { useData } from '../../lib/useData'
 import { buildAgenda } from '../../lib/agenda'
 import { useState, useEffect } from 'react'
 import { todayMadrid, timeHM, relativeTime, appliesToday } from '../../lib/date'
-import { Card, CollapsibleSection, Pill, ProgressRing, Spinner, Avatar } from '../../components/ui'
+import { Card, CollapsibleSection, Tag, CountBadge, ProgressRing, Spinner, Avatar } from '../../components/ui'
 import { AnnouncementCard } from '../../components/cards'
 import { BirthdayNotice } from '../../components/Birthday'
 import Fichaje from '../../components/Fichaje'
@@ -134,14 +134,14 @@ export default function AdminDashboard() {
       {/* El responsable también ficha (sin geocerca: desde cualquier sitio) */}
       <Fichaje employee={employee} />
       <NotificationsBanner />
-      {/* En directo */}
-      <div className="card-line inline-flex items-center gap-2 rounded-full bg-white/80 py-1.5 pl-3 pr-3.5 shadow-card">
-        <span className="relative flex h-2.5 w-2.5">
+      {/* Frescura de datos: es información, no un estado → texto plano discreto */}
+      <p className="flex items-center gap-2 px-1">
+        <span className="relative flex h-2 w-2">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sage opacity-60" />
-          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sage" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-sage" />
         </span>
-        <span className="text-sm font-semibold text-ink/60">En directo · actualizado {timeHM(new Date(syncedAt).toISOString())}</span>
-      </div>
+        <span className="text-xs font-semibold text-ink/45">En directo · actualizado {timeHM(new Date(syncedAt).toISOString())}</span>
+      </p>
 
       {/* Aviso urgente activo a limpieza */}
       {urgentClean.length > 0 && (
@@ -159,7 +159,7 @@ export default function AdminDashboard() {
       {/* Avisos activos: TODO lo que está activo en el gym ahora (dirección + equipo).
           Los de dirección salen destacados; los del equipo, discretos con su autor. */}
       {activeAnn.length > 0 && (
-        <CollapsibleSection icon={Megaphone} title="Avisos activos" right={<Pill color="bronze">{activeAnn.length}</Pill>} persistKey="b13.admin.avisos">
+        <CollapsibleSection icon={Megaphone} title="Avisos activos" right={<CountBadge>{activeAnn.length}</CountBadge>} persistKey="b13.admin.avisos">
           <div className="space-y-2">
             {activeAnn.map((a) => <AnnouncementCard key={a.id} a={a} />)}
           </div>
@@ -168,7 +168,7 @@ export default function AdminDashboard() {
 
       {/* Quién está — solo quien está fichado (en turno o en pausa/comida).
           Se actualiza solo: 'entries' refresca cada 15s al fichar cualquiera. */}
-      <CollapsibleSection icon={User} title="Equipo ahora" right={<Pill color={present.length ? 'sage' : 'ink'}>{present.length}</Pill>} persistKey="b13.admin.equipo">
+      <CollapsibleSection icon={User} title="Equipo ahora" right={<CountBadge tone={present.length ? 'sage' : 'ink'}>{present.length}</CountBadge>} persistKey="b13.admin.equipo">
         {present.length === 0 ? (
           <Card className="flex items-center gap-2 p-4 text-ink/45">
             <User size={18} /> <span className="text-sm font-semibold">Nadie fichado ahora mismo</span>
@@ -230,7 +230,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Incidencias y mantenimiento abiertos */}
-      <CollapsibleSection icon={Alert} title="Incidencias y mantenimiento" right={<Pill color="ink">{openAll.length}</Pill>} persistKey="b13.admin.incidencias">
+      <CollapsibleSection icon={Alert} title="Incidencias y mantenimiento" right={<CountBadge tone="ink">{openAll.length}</CountBadge>} persistKey="b13.admin.incidencias">
         {openAll.length === 0 ? (
           <Card className="flex items-center gap-2 p-4 text-sage"><Check size={18} /> <span className="text-sm font-semibold">Nada pendiente</span></Card>
         ) : (
@@ -241,13 +241,12 @@ export default function AdminDashboard() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-ink">{i.title}</p>
                   <p className="flex items-center gap-1.5 text-xs text-ink/40">
-                    <Pill color={i._src === 'mant' ? 'bronze' : 'stone'}>{i._src === 'mant' ? 'Mant.' : 'Interna'}</Pill>
+                    {/* El tipo es información: texto plano */}
+                    <span className={`font-semibold ${i._src === 'mant' ? 'text-bronze-dark' : 'text-stone'}`}>{i._src === 'mant' ? 'Mant.' : 'Interna'}</span>
                     {i.zone} · {relativeTime(i.created_at)}
                   </p>
                 </div>
-                <Pill color={i.status === 'in_progress' ? 'ochre' : 'terracotta'}>
-                  {i.status === 'in_progress' ? 'En curso' : 'Pendiente'}
-                </Pill>
+                <Tag status={i.status} />
               </Card>
             ))}
           </div>

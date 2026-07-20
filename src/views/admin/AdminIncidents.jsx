@@ -7,11 +7,10 @@ import { useData } from '../../lib/useData'
 import { useSession } from '../../state/session'
 import { useToast } from '../../components/Toast'
 import { haptic } from '../../lib/haptics'
-import { Card, SectionTitle, Pill, Spinner, EmptyState } from '../../components/ui'
+import { Card, SectionTitle, Tag, Spinner, EmptyState } from '../../components/ui'
 import IncidenciaTypesEditor from '../../components/IncidenciaTypesEditor'
 import AreasEditor from '../../components/AreasEditor'
-import ReportIncident from '../../components/ReportIncident'
-import { Alert, Wrench, Check, Clock, User, Settings, Trash, Plus, GripVertical } from '../../components/icons'
+import { Alert, Wrench, Check, Clock, User, Settings, Trash, GripVertical } from '../../components/icons'
 import { shortDate, dateTime, daysBetween, relativeTime } from '../../lib/date'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
@@ -68,15 +67,16 @@ function IncidentCard({ inc, onStart, onResolve, onDelete, isMaint, dragHandle }
       )}
       <button onClick={() => setOpen((v) => !v)} className="w-full p-4 text-left">
         <div className="mb-1 flex flex-wrap items-center gap-2 pr-8">
-          <Pill color={STATUS[inc.status].pill}>{STATUS[inc.status].label}</Pill>
-          {inc.priority === 'urgent' && !done && <Pill color="terracotta">URGENTE</Pill>}
-          {inc.area && <Pill color="bronze">{inc.area}</Pill>}
+          <Tag status={inc.status} />
+          {inc.priority === 'urgent' && !done && <Tag status="urgent" />}
+          {/* Área y categoría son información, no estado: texto plano */}
+          {inc.area && <span className="text-xs font-semibold text-bronze-dark">{inc.area}</span>}
           {inc.category && <span className="text-xs font-semibold text-ink/40">{inc.category}</span>}
         </div>
         <div className="flex gap-3">
           {inc.photo_url && <img src={inc.photo_url} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" loading="lazy" />}
           <div className="min-w-0 flex-1">
-            <p className="font-display text-lg font-bold leading-tight text-ink">{inc.title}</p>
+            <p className="font-display text-card font-bold leading-tight text-ink">{inc.title}</p>
             {inc.zone && <p className="text-sm font-semibold text-bronze-dark">{inc.zone}</p>}
             <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-ink/45">
               <span className="flex items-center gap-1"><User size={11} /> {inc.reported_by_name || '—'}</span>
@@ -113,11 +113,11 @@ function IncidentCard({ inc, onStart, onResolve, onDelete, isMaint, dragHandle }
           {!done && (
             <div className="mt-3 flex gap-2">
               {inc.status === 'pending' && isMaint && (
-                <button onClick={() => onStart(inc)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-ochre/15 py-2.5 text-sm font-bold text-[#8a6a1e] transition-enter active:scale-95">
+                <button onClick={() => onStart(inc)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-ochre/15 min-h-[44px] text-sm font-bold text-[#8a6a1e] transition-enter active:scale-95">
                   <Clock size={16} /> Marcar en curso
                 </button>
               )}
-              <button onClick={() => onResolve(inc)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-sage py-2.5 text-sm font-bold text-white transition-enter active:scale-95">
+              <button onClick={() => onResolve(inc)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-sage min-h-[44px] text-sm font-bold text-white transition-enter active:scale-95">
                 <Check size={16} /> Marcar resuelta
               </button>
             </div>
@@ -130,7 +130,7 @@ function IncidentCard({ inc, onStart, onResolve, onDelete, isMaint, dragHandle }
               <button onClick={() => onDelete(inc)} className="rounded-lg bg-terracotta px-3 py-2 text-sm font-extrabold text-white transition-enter active:scale-95">Sí, eliminar</button>
             </div>
           ) : (
-            <button onClick={() => setConfirmDel(true)} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold text-terracotta transition-enter active:scale-95">
+            <button onClick={() => setConfirmDel(true)} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl min-h-[44px] text-sm font-bold text-terracotta transition-enter active:scale-95">
               <Trash size={16} /> Eliminar {isMaint ? 'parte' : 'incidencia'}
             </button>
           )}
@@ -159,7 +159,6 @@ export default function AdminIncidents() {
   const [sf, setSf] = useState('open')
   const [editTags, setEditTags] = useState(false)
   const [editAreas, setEditAreas] = useState(false)
-  const [adding, setAdding] = useState(false)
   const [items, setItems] = useState([])
 
   const isMaint = source === 'mantenimiento'
@@ -249,7 +248,7 @@ export default function AdminIncidents() {
       <div className="flex gap-2">
         {STATUS_FILTERS.map((f) => (
           <button key={f.key} onClick={() => setSf(f.key)}
-            className={`flex-1 rounded-2xl py-2.5 text-sm font-bold transition active:scale-95 ${sf === f.key ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/60'}`}>
+            className={`min-h-[44px] flex-1 rounded-2xl text-sm font-bold transition active:scale-95 ${sf === f.key ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/60'}`}>
             {f.label}
           </button>
         ))}
@@ -259,17 +258,14 @@ export default function AdminIncidents() {
         icon={isMaint ? Wrench : Alert}
         right={
           <div className="flex items-center gap-2">
-            <button onClick={() => setEditAreas(true)} className="flex items-center gap-1 rounded-full bg-ink/5 px-3 py-1.5 text-xs font-bold text-ink/60 transition-enter active:scale-95">
+            <button onClick={() => setEditAreas(true)} className="flex min-h-[44px] items-center gap-1 rounded-full bg-ink/5 px-3.5 text-xs font-bold text-ink/60 transition-enter active:scale-95">
               <Settings size={13} /> Áreas
             </button>
             {!isMaint && (
-              <button onClick={() => setEditTags(true)} className="flex items-center gap-1 rounded-full bg-ink/5 px-3 py-1.5 text-xs font-bold text-ink/60 transition-enter active:scale-95">
+              <button onClick={() => setEditTags(true)} className="flex min-h-[44px] items-center gap-1 rounded-full bg-ink/5 px-3.5 text-xs font-bold text-ink/60 transition-enter active:scale-95">
                 <Settings size={13} /> Etiquetas
               </button>
             )}
-            <button onClick={() => setAdding(true)} className="flex items-center gap-1 rounded-full bg-ink px-3 py-1.5 text-xs font-bold text-white transition-enter active:scale-95">
-              <Plus size={13} /> Añadir
-            </button>
           </div>
         }
       >
@@ -299,14 +295,6 @@ export default function AdminIncidents() {
 
       <IncidenciaTypesEditor open={editTags} onClose={() => setEditTags(false)} />
       <AreasEditor open={editAreas} onClose={() => setEditAreas(false)} />
-
-      <ReportIncident
-        open={adding}
-        onClose={() => setAdding(false)}
-        employee={employee}
-        target={isMaint ? 'mantenimiento' : 'incidencia'}
-        onCreated={() => (isMaint ? maintenance.reload(true) : incidencias.reload(true))}
-      />
     </div>
   )
 }

@@ -8,7 +8,7 @@ import { buildAgenda } from '../../lib/agenda'
 import { useSession } from '../../state/session'
 import { useToast } from '../../components/Toast'
 import Sheet from '../../components/Sheet'
-import { Card, CollapsibleSection, Pill, ProgressRing, Skeleton, EmptyState } from '../../components/ui'
+import { Card, CollapsibleSection, Tag, CountBadge, ProgressRing, Skeleton, EmptyState } from '../../components/ui'
 import { Alert, Wrench, Spray, Check, Clock, User } from '../../components/icons'
 import { relativeTime, timeHM } from '../../lib/date'
 
@@ -58,7 +58,7 @@ export default function CoachGym() {
       <CollapsibleSection
         icon={Alert}
         title="Incidencias abiertas"
-        right={<Pill color={openIncid.length ? 'terracotta' : 'sage'}>{openIncid.length}</Pill>}
+        right={<CountBadge tone={openIncid.length ? 'terracotta' : 'sage'}>{openIncid.length}</CountBadge>}
         persistKey={`b13.coachgym.incidencias.${employee.id}`}
       >
         {incid.loading ? (
@@ -71,7 +71,7 @@ export default function CoachGym() {
               <Card key={i.id} className="overflow-hidden">
                 <div className="p-3">
                   <div className="mb-0.5 flex items-center gap-2">
-                    <Pill color={STATUS[i.status].pill}>{STATUS[i.status].label}</Pill>
+                    <Tag status={i.status} />
                     {i.category && <span className="text-xs font-semibold text-ink/40">{i.category}</span>}
                     <span className="ml-auto text-xs text-ink/35">{relativeTime(i.created_at)}</span>
                   </div>
@@ -83,7 +83,7 @@ export default function CoachGym() {
                 <button
                   onClick={() => openResolve(i)}
                   disabled={busy === i.id}
-                  className="flex w-full items-center justify-center gap-1.5 border-t border-ink/[0.06] py-2.5 text-sm font-bold text-sage active:bg-ink/[0.03] disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-1.5 border-t border-ink/[0.06] min-h-[44px] text-sm font-bold text-sage active:bg-ink/[0.03] disabled:opacity-50"
                 >
                   <Check size={16} /> Marcar resuelta
                 </button>
@@ -97,7 +97,7 @@ export default function CoachGym() {
       <CollapsibleSection
         icon={Wrench}
         title="Mantenimiento activo"
-        right={<Pill color={openMaint.length ? 'ochre' : 'sage'}>{openMaint.length}</Pill>}
+        right={<CountBadge tone={openMaint.length ? 'ochre' : 'sage'}>{openMaint.length}</CountBadge>}
         persistKey={`b13.coachgym.maintenance.${employee.id}`}
       >
         {openMaint.length === 0 ? (
@@ -111,7 +111,7 @@ export default function CoachGym() {
                   <p className="truncate font-semibold text-ink">{i.title}</p>
                   <p className="text-xs text-ink/40">{i.zone} · {relativeTime(i.created_at)}</p>
                 </div>
-                <Pill color={i.status === 'in_progress' ? 'ochre' : 'terracotta'}>{i.status === 'in_progress' ? 'En curso' : 'Pendiente'}</Pill>
+                <Tag status={i.status} />
               </Card>
             ))}
           </div>

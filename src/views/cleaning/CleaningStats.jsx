@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { listEmployees, listTemplates, rangeCompletions, rangeAdHoc, rangeTimeEntries } from '../../lib/api'
 import { useData } from '../../lib/useData'
-import { Card, CollapsibleSection, Pill, ProgressRing, SkeletonList, EmptyState, Avatar } from '../../components/ui'
+import { Card, CollapsibleSection, ProgressRing, SkeletonList, EmptyState, Avatar } from '../../components/ui'
+import { WeekStepper } from '../../components/controls'
 import { Activity, Spray, Check, Clock, User, Chevron, Refresh } from '../../components/icons'
 import { dayBounds, weekBounds, monthBounds, weekdayOf, dowLabel, timeHM, isTodayStr, todayMadrid } from '../../lib/date'
 import { workedMinutesByEmployee, fmtMinutes } from '../../lib/hours'
@@ -82,23 +83,19 @@ export default function CleaningStats() {
       <div className="flex gap-2">
         {PERIODS.map((p) => (
           <button key={p.key} onClick={() => { setPeriod(p.key); setOffset(0) }}
-            className={`flex-1 rounded-2xl py-2.5 text-sm font-bold transition active:scale-95 ${period === p.key ? 'bg-ink text-white' : 'bg-ink/5 text-ink/55'}`}>
+            className={`min-h-[44px] flex-1 rounded-2xl text-sm font-bold transition active:scale-95 ${period === p.key ? 'bg-ink text-white' : 'bg-ink/5 text-ink/55'}`}>
             {p.label}
           </button>
         ))}
       </div>
 
-      {/* Navegación de periodo */}
-      <div className="flex items-center justify-between">
-        <button onClick={() => setOffset((o) => o + 1)} aria-label="Anterior" className="flex h-9 w-9 items-center justify-center rounded-full bg-ink/5 active:scale-90">
-          <Chevron size={18} className="rotate-180 text-ink/60" />
-        </button>
-        <span className="font-display text-lg font-extrabold capitalize text-ink">{range.label}</span>
-        <button onClick={() => setOffset((o) => Math.max(0, o - 1))} disabled={offset === 0} aria-label="Siguiente"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-ink/5 active:scale-90 disabled:opacity-30">
-          <Chevron size={18} className="text-ink/60" />
-        </button>
-      </div>
+      {/* Navegación de periodo (stepper estándar; aquí offset+1 = anterior) */}
+      <WeekStepper
+        label={range.label}
+        onPrev={() => setOffset((o) => o + 1)}
+        onNext={() => setOffset((o) => Math.max(0, o - 1))}
+        nextDisabled={offset === 0}
+      />
 
       {loading ? (
         <SkeletonList rows={5} />

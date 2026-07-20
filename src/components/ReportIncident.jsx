@@ -109,7 +109,7 @@ export default function ReportIncident({ open, onClose, employee, onCreated, tar
           <button
             key={c.key}
             onClick={() => setCategory(c.key)}
-            className={`rounded-full px-3.5 py-2 text-sm font-semibold transition active:scale-95 ${
+            className={`inline-flex items-center min-h-[44px] rounded-full px-4 text-sm font-semibold transition active:scale-95 ${
               category === c.key ? 'bg-ink text-white' : 'bg-ink/5 text-ink/70'
             }`}
           >
@@ -124,7 +124,7 @@ export default function ReportIncident({ open, onClose, employee, onCreated, tar
           <button
             key={a.id}
             onClick={() => setArea(a.name === area ? null : a.name)}
-            className={`rounded-full px-3.5 py-2 text-sm font-semibold transition active:scale-95 ${
+            className={`inline-flex items-center min-h-[44px] rounded-full px-4 text-sm font-semibold transition active:scale-95 ${
               area === a.name ? 'bg-ink text-white' : 'bg-ink/5 text-ink/70'
             }`}
           >
@@ -139,7 +139,7 @@ export default function ReportIncident({ open, onClose, employee, onCreated, tar
           <button
             key={z}
             onClick={() => setZone(z === zone ? null : z)}
-            className={`rounded-full px-3.5 py-2 text-sm font-semibold transition active:scale-95 ${
+            className={`inline-flex items-center min-h-[44px] rounded-full px-4 text-sm font-semibold transition active:scale-95 ${
               zone === z ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/70'
             }`}
           >

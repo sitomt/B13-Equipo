@@ -53,7 +53,7 @@ export default function FeedbackSheet({ open, onClose, employee, onCreated }) {
           <button
             key={t.key}
             onClick={() => setType(t.key)}
-            className={`rounded-full px-3.5 py-2 text-sm font-semibold transition active:scale-95 ${
+            className={`inline-flex items-center min-h-[44px] rounded-full px-4 text-sm font-semibold transition active:scale-95 ${
               type === t.key ? 'bg-ink text-white' : 'bg-ink/5 text-ink/70'
             }`}
           >

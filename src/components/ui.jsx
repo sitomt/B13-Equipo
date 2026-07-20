@@ -110,22 +110,45 @@ export function FullLoader({ label = 'Cargando…' }) {
   )
 }
 
-// Etiqueta de estado / categoría
-export function Pill({ color = 'ink', children, className = '' }) {
-  const map = {
-    ink: 'bg-ink/8 text-ink',
-    sage: 'bg-sage/15 text-sage',
-    terracotta: 'bg-terracotta/15 text-terracotta',
-    ochre: 'bg-ochre/20 text-[#8a6a1e]',
-    stone: 'bg-stone/15 text-stone',
+// Tag de ESTADO. Solo para estados que clasifican un recurso; la información
+// pura (fechas, "en directo", categorías) va como texto plano, nunca en tag.
+const TAG_STATUS = {
+  pending: { cls: 'bg-terracotta/15 text-terracotta', label: 'Pendiente' },
+  in_progress: { cls: 'bg-ochre/20 text-[#8a6a1e]', label: 'En curso' },
+  done: { cls: 'bg-sage/15 text-sage', label: 'Resuelta' },
+  urgent: { cls: 'bg-terracotta/15 text-terracotta', label: 'URGENTE' },
+  draft: { cls: 'bg-ochre/20 text-[#8a6a1e]', label: 'Borrador' },
+  published: { cls: 'bg-sage/15 text-sage', label: 'Publicado' },
+  active: { cls: 'bg-sage/15 text-sage', label: 'Activo' },
+}
+export function Tag({ status, children, className = '' }) {
+  const meta = TAG_STATUS[status] || TAG_STATUS.pending
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-[3px] text-xs font-bold ${meta.cls} ${className}`}>
+      {children ?? meta.label}
+    </span>
+  )
+}
+
+// Contador discreto en cabeceras de sección (semántica de conteo, no de estado).
+export function CountBadge({ tone = 'bronze', children, className = '' }) {
+  const tones = {
     bronze: 'bg-bronze/15 text-bronze-dark',
-    white: 'bg-white/15 text-white',
+    ink: 'bg-ink/8 text-ink',
+    terracotta: 'bg-terracotta/15 text-terracotta',
+    sage: 'bg-sage/15 text-sage',
+    ochre: 'bg-ochre/20 text-[#8a6a1e]',
   }
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-[3px] text-xs font-bold ${map[color]} ${className}`}>
+    <span className={`tabular inline-flex min-w-[22px] items-center justify-center rounded-full px-2 py-[3px] text-xs font-bold ${tones[tone]} ${className}`}>
       {children}
     </span>
   )
+}
+
+// Título de card (nivel 3 de la jerarquía: pantalla > sección > card > contenido)
+export function CardTitle({ className = '', children }) {
+  return <h3 className={`font-display text-card font-bold text-ink ${className}`}>{children}</h3>
 }
 
 // Anillo de progreso (para % de agenda). Al llegar al 100% vira a sage y
@@ -172,7 +195,7 @@ export function SectionTitle({ icon: Icon, children, right }) {
             <Icon size={15} />
           </span>
         )}
-        <h2 className="font-display text-[22px] font-extrabold tracking-tight">{children}</h2>
+        <h2 className="font-display text-section font-extrabold tracking-tight">{children}</h2>
       </div>
       {right}
     </div>
@@ -215,7 +238,7 @@ export function CollapsibleSection({ icon: Icon, title, right, persistKey, defau
               <Icon size={15} />
             </span>
           )}
-          <span className="font-display text-[22px] font-extrabold tracking-tight">{title}</span>
+          <span className="font-display text-section font-extrabold tracking-tight">{title}</span>
           <ChevronDown size={18} className={`text-ink/30 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
         {right}

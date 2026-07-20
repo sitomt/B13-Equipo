@@ -101,7 +101,7 @@ export default function AnnouncementSheet({
           <div className="mb-4 flex flex-wrap gap-2">
             {ROLES.map((r) => (
               <button key={r.key} onClick={() => toggleRole(r.key)}
-                className={`rounded-full px-3.5 py-2 text-sm font-semibold transition active:scale-95 ${roles.includes(r.key) ? 'bg-ink text-white' : 'bg-ink/5 text-ink/70'}`}>
+                className={`inline-flex items-center min-h-[44px] rounded-full px-4 text-sm font-semibold transition active:scale-95 ${roles.includes(r.key) ? 'bg-ink text-white' : 'bg-ink/5 text-ink/70'}`}>
                 {r.label}
               </button>
             ))}
