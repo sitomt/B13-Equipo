@@ -14,6 +14,14 @@ export function todayMadrid() {
   return parts // en-CA da YYYY-MM-DD
 }
 
+// Hoy en Madrid ± n días, como 'YYYY-MM-DD' (misma mecánica que dayBounds).
+export function addDaysMadrid(n) {
+  const [y, m, d] = todayMadrid().split('-').map(Number)
+  const base = new Date(y, m - 1, d + n)
+  const pad2 = (x) => String(x).padStart(2, '0')
+  return `${base.getFullYear()}-${pad2(base.getMonth() + 1)}-${pad2(base.getDate())}`
+}
+
 // Día de la semana en Madrid: 0=domingo ... 6=sábado
 export function weekdayMadrid() {
   const wd = new Intl.DateTimeFormat('en-US', {

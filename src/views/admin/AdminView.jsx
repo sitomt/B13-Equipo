@@ -8,26 +8,25 @@ import ReportIncident from '../../components/ReportIncident'
 import AdminDashboard from './AdminDashboard'
 import AdminIncidents from './AdminIncidents'
 import AdminAnnouncements from './AdminAnnouncements'
-import AgendaOverview from './AgendaOverview'
 import AgendaEditorScreen from './AgendaEditorScreen'
 import AdminStats from './AdminStats'
 import AdminFeedback from './AdminFeedback'
 import ScheduleScreen from '../ScheduleScreen'
 import ScheduleEditorScreen from '../schedule/ScheduleEditorScreen'
 import { useSession } from '../../state/session'
-import { Activity, Megaphone, Wrench, Calendar, BarChart, Chat, Spray, Alert, Book, Pencil } from '../../components/icons'
+import { Activity, Megaphone, Wrench, Calendar, BarChart, Chat, Spray, Alert, Book } from '../../components/icons'
 
-// 5 pestañas de VISUALIZACIÓN (Stats vive dentro de Resumen y Feedback dentro
-// de Avisos, vía control segmentado). Equipo vive en el Perfil (avatar).
-// Toda creación/edición sale del "+" del navbar.
+// 4 pestañas de VISUALIZACIÓN (Stats vive dentro de Resumen y Feedback dentro
+// de Avisos, vía control segmentado). Equipo vive en el Perfil (avatar) y la
+// Agenda en su pantalla única ("+ → Agenda"). Toda creación/edición sale del
+// "+" del navbar.
 const TABS = [
   { key: 'dash', label: 'Resumen', icon: Activity },
   { key: 'horario', label: 'Horarios', icon: Calendar },
   { key: 'inc', label: 'Incidencias', icon: Wrench },
   { key: 'comm', label: 'Avisos', icon: Megaphone },
-  { key: 'agenda', label: 'Agenda', icon: Book },
 ]
-const SUBTITLE = { dash: 'Panel de control', horario: 'Horarios', inc: 'Incidencias', comm: 'Avisos', agenda: 'Agenda' }
+const SUBTITLE = { dash: 'Panel de control', horario: 'Horarios', inc: 'Incidencias', comm: 'Avisos' }
 
 export default function AdminView() {
   const { employee } = useSession()
@@ -67,7 +66,6 @@ export default function AdminView() {
             {commView === 'avisos' ? <AdminAnnouncements /> : <AdminFeedback />}
           </>
         )}
-        {tab === 'agenda' && <AgendaOverview />}
       </div>
 
       <AnnouncementSheet open={annOpen} onClose={() => setAnnOpen(false)} employee={employee} />
@@ -82,12 +80,13 @@ export default function AdminView() {
         active={tab}
         onChange={setTab}
         actions={[
-          { icon: Alert, label: 'Nueva incidencia', hint: 'Interna: coaches y dirección', tone: 'ink', onClick: () => setIncidentOpen(true) },
-          { icon: Wrench, label: 'Nueva tarea de mantenimiento', hint: 'Le llega al técnico', tone: 'terracotta', onClick: () => setMaintOpen(true) },
-          { icon: Spray, label: 'Nueva tarea de limpieza', hint: 'Le llega a limpieza', tone: 'bronze', onClick: () => setCleanOpen(true) },
-          { icon: Megaphone, label: 'Nuevo aviso', hint: 'Mensaje al equipo', tone: 'ink', onClick: () => setAnnOpen(true) },
-          { icon: Calendar, label: 'Editar horarios', hint: 'Asignar turnos y publicar la semana', tone: 'bronze', onClick: () => setSchedEditor(true) },
-          { icon: Pencil, label: 'Editar agenda', hint: 'Tareas diarias y preventivas', tone: 'ink', onClick: () => setAgendaEditor(true) },
+          // Orden por frecuencia: lo más usado abajo, más cerca del pulgar.
+          { group: 'Gestionar', icon: Calendar, label: 'Editar horarios', hint: 'Asignar turnos y publicar la semana', onClick: () => setSchedEditor(true) },
+          { group: 'Gestionar', icon: Book, label: 'Agenda', hint: 'Ver y editar tareas diarias y preventivas', onClick: () => setAgendaEditor(true) },
+          { group: 'Registrar', icon: Spray, label: 'Nueva tarea de limpieza', hint: 'Le llega a limpieza', onClick: () => setCleanOpen(true) },
+          { group: 'Registrar', icon: Wrench, label: 'Nueva tarea de mantenimiento', hint: 'Le llega al técnico', onClick: () => setMaintOpen(true) },
+          { group: 'Registrar', icon: Megaphone, label: 'Nuevo aviso', hint: 'Mensaje al equipo', onClick: () => setAnnOpen(true) },
+          { group: 'Registrar', icon: Alert, label: 'Nueva incidencia', hint: 'Interna: coaches y dirección', onClick: () => setIncidentOpen(true) },
         ]}
       />
     </Screen>

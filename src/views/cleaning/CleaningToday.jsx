@@ -1,25 +1,24 @@
-import { useState } from 'react'
 import { TaskRow, AdHocCard } from '../../components/cards'
 import Fichaje from '../../components/Fichaje'
 import { Card, CollapsibleSection, CountBadge, ProgressRing, SkeletonList, EmptyState } from '../../components/ui'
 import TaskGroup from '../../components/TaskGroup'
 import AlertsBanner from '../../components/AlertsBanner'
-import AnnouncementsOverlay from '../coach/AnnouncementsOverlay'
-import { listTemplates, todayCompletions, listAdHoc, activeAnnouncements } from '../../lib/api'
+import { listTemplates, todayCompletions, listAdHoc } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { buildAgenda } from '../../lib/agenda'
 import { useSession } from '../../state/session'
 import { BirthdayNotice } from '../../components/Birthday'
 import NotificationsBanner from '../../components/NotificationsBanner'
+import MyReports from '../../components/MyReports'
 import { Map, Spray, Activity, Alert } from '../../components/icons'
 
-export default function CleaningToday() {
+// Los avisos vigentes llegan de la View (useAnnouncements); el banner salta
+// a la pestaña "Avisos" del navbar.
+export default function CleaningToday({ anns = [], onOpenAnns }) {
   const { employee } = useSession()
   const tpl = useData(() => listTemplates('cleaning'), [])
   const comp = useData(() => todayCompletions('cleaning'), [], { interval: 45000 })
   const adhoc = useData(() => listAdHoc('cleaning'), [], { interval: 20000 })
-  const ann = useData(() => activeAnnouncements('cleaning'), [], { interval: 60000 })
-  const [annsOpen, setAnnsOpen] = useState(false)
 
   const reload = () => Promise.all([comp.reload(true), adhoc.reload(true)])
   const agenda = buildAgenda(tpl.data, comp.data)
@@ -46,7 +45,7 @@ export default function CleaningToday() {
       )}
 
       <Fichaje employee={employee} />
-      <AlertsBanner anns={ann.data || []} onOpen={() => setAnnsOpen(true)} />
+      <AlertsBanner anns={anns} onOpen={onOpenAnns} />
       <NotificationsBanner />
 
       {tpl.loading ? (
@@ -98,7 +97,8 @@ export default function CleaningToday() {
         </CollapsibleSection>
       )}
 
-      {annsOpen && <AnnouncementsOverlay anns={ann.data || []} onClose={() => setAnnsOpen(false)} />}
+      {/* Seguimiento de lo que reportó (limpieza solo reporta mantenimiento) */}
+      <MyReports employee={employee} sources={['mantenimiento']} />
     </div>
   )
 }

@@ -20,11 +20,14 @@ export default function BottomNav({ tabs, active, onChange, actions, actionsTitl
             {tabs.map((t) => {
               const Icon = t.icon
               const on = active === t.key
+              // Burbuja de no-leídos (t.badge): número opcional sobre el icono.
+              const badge = t.badge > 0 ? (t.badge > 9 ? '9+' : t.badge) : null
               return (
                 <button
                   key={t.key}
                   onClick={() => { if (!on) haptic('tap'); onChange(t.key) }}
                   aria-current={on ? 'page' : undefined}
+                  aria-label={badge ? `${t.label}, ${t.badge} sin leer` : undefined}
                   className={`relative flex min-h-[50px] min-w-[56px] flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1 text-[10px] font-bold transition-enter ${
                     on ? 'bg-white/[0.07] text-bronze-glow' : 'text-white/40'
                   }`}
@@ -36,7 +39,17 @@ export default function BottomNav({ tabs, active, onChange, actions, actionsTitl
                     }`}
                     aria-hidden="true"
                   />
-                  <Icon size={20} strokeWidth={on ? 2.2 : 1.8} />
+                  <span className="relative">
+                    <Icon size={20} strokeWidth={on ? 2.2 : 1.8} />
+                    {badge && (
+                      <span
+                        className="tabular absolute -right-2 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-terracotta px-1 text-[9px] font-bold text-white"
+                        aria-hidden="true"
+                      >
+                        {badge}
+                      </span>
+                    )}
+                  </span>
                   {t.label}
                 </button>
               )

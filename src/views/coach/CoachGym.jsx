@@ -8,6 +8,7 @@ import { buildAgenda } from '../../lib/agenda'
 import { useSession } from '../../state/session'
 import { useToast } from '../../components/Toast'
 import Sheet from '../../components/Sheet'
+import MyReports from '../../components/MyReports'
 import { Card, CollapsibleSection, Tag, CountBadge, ProgressRing, Skeleton, EmptyState } from '../../components/ui'
 import { Alert, Wrench, Spray, Check, Clock, User } from '../../components/icons'
 import { relativeTime, timeHM } from '../../lib/date'
@@ -158,6 +159,9 @@ export default function CoachGym() {
           </Card>
         )}
       </CollapsibleSection>
+
+      {/* Seguimiento de lo que reportó este coach (cierre del círculo) */}
+      <MyReports employee={employee} sources={['incidencia', 'mantenimiento', 'feedback']} />
 
       {/* Resolver incidencia con nota opcional (qué se hizo) */}
       <Sheet open={!!resolving} onClose={() => setResolving(null)} title="Resolver incidencia">

@@ -4,6 +4,7 @@ import { useData } from '../../lib/useData'
 import { Card, SectionTitle, Tag, CountBadge, SkeletonList, EmptyState } from '../../components/ui'
 import { SegmentedControl } from '../../components/controls'
 import { recurrenceLabel, nextOccurrence } from '../../lib/date'
+import { haptic } from '../../lib/haptics'
 import { Settings, Sunrise, Moon, Activity, Refresh, Clock, Wrench, Alert, Pencil } from '../../components/icons'
 
 const WEEKDAYS = [
@@ -24,10 +25,10 @@ function weekdaysLabel(wd) {
 }
 
 // ============================================================================
-// Pestaña "Agenda" (solo VISUALIZACIÓN): qué tareas tiene programadas cada
-// equipo. La edición vive en su pantalla dedicada ("+ → Editar agenda").
+// Modo "Ver" de la pantalla de Agenda: qué tareas tiene programadas cada
+// equipo. La edición vive en el modo "Editar" (onEdit salta a él).
 // ============================================================================
-export default function AgendaOverview() {
+export default function AgendaOverview({ onEdit }) {
   const [mode, setMode] = useState('diarias')
   const tpls = useData(listAllTemplates, [])
   const mant = useData(() => listRecurring('mantenimiento'), [])
@@ -47,7 +48,7 @@ export default function AgendaOverview() {
         tpls.loading ? (
           <SkeletonList rows={5} />
         ) : list.length === 0 ? (
-          <EmptyState icon={Settings} title="Sin tareas en la agenda" subtitle='Créalas desde "+" → Editar agenda.' />
+          <EmptyState icon={Settings} title="Sin tareas en la agenda" subtitle="Créalas desde el modo «Editar»." />
         ) : (
           ['coach', 'cleaning'].map((role) => (
             <div key={role}>
@@ -122,9 +123,13 @@ export default function AgendaOverview() {
         })
       )}
 
-      <p className="flex items-center gap-1.5 px-1 text-xs text-ink/40">
-        <Pencil size={12} /> Para crear o cambiar tareas: «+» → Editar agenda.
-      </p>
+      <button
+        onClick={() => { haptic('tap'); onEdit?.() }}
+        disabled={!onEdit}
+        className="flex min-h-[44px] items-center gap-1.5 px-1 text-left text-xs text-ink/40 transition active:opacity-70"
+      >
+        <Pencil size={12} /> Para crear o cambiar tareas, pasa al modo <span className="font-bold underline underline-offset-2">Editar</span>.
+      </button>
     </div>
   )
 }

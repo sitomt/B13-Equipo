@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { Card, CollapsibleSection, Tag, CountBadge, Skeleton, EmptyState } from '../../components/ui'
 import Sheet from '../../components/Sheet'
 import { Chip, Button } from '../../components/controls'
-import { listMaintenance, updateMaintenance, activeAnnouncements, listAreas } from '../../lib/api'
+import { listMaintenance, updateMaintenance, listAreas } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { useSession } from '../../state/session'
 import { useToast } from '../../components/Toast'
-import { AnnouncementCard } from '../../components/cards'
+import AlertsBanner from '../../components/AlertsBanner'
 import { BirthdayNotice } from '../../components/Birthday'
 import { Wrench, Alert, Check, Clock, User, Pencil, Search } from '../../components/icons'
 import { relativeTime } from '../../lib/date'
@@ -62,12 +62,12 @@ function IncidentCard({ inc, onStart, onResolve, onNote }) {
 }
 
 // Día del técnico: "Tus reparaciones". `refresh` fuerza recarga (tras crear
-// una tarea desde el "+" del navbar).
-export default function MaintenanceToday({ refresh = 0 }) {
+// una tarea desde el "+" del navbar). Los avisos vigentes llegan de la View
+// (useAnnouncements); el banner salta a la pestaña "Avisos" del navbar.
+export default function MaintenanceToday({ refresh = 0, anns = [], onOpenAnns }) {
   const { employee } = useSession()
   const toast = useToast()
   const inc = useData(listMaintenance, [], { interval: 20000 })
-  const ann = useData(() => activeAnnouncements('maintenance'), [], { interval: 60000 })
   const areas = useData(listAreas, [])
   const [areaFilter, setAreaFilter] = useState(null) // null = todas las áreas
   const [query, setQuery] = useState('')             // búsqueda por texto
@@ -134,6 +134,8 @@ export default function MaintenanceToday({ refresh = 0 }) {
   return (
     <div className="space-y-5">
       <BirthdayNotice />
+      {/* Banner de avisos arriba del contenido (paridad con coach y limpieza) */}
+      <AlertsBanner anns={anns} onOpen={onOpenAnns} />
       {/* Resumen */}
       <div className="grid grid-cols-3 gap-3">
         {[
@@ -171,8 +173,6 @@ export default function MaintenanceToday({ refresh = 0 }) {
           ))}
         </div>
       )}
-
-      {ann.data && ann.data.length > 0 && ann.data.map((a) => <AnnouncementCard key={a.id} a={a} />)}
 
       {inc.loading ? (
         <div className="space-y-3" aria-hidden="true">

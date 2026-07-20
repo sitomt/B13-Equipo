@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { todayMadrid } from './date'
+import { todayMadrid, addDaysMadrid } from './date'
 import { enqueue, isNetworkError } from './offline'
 
 // Inserción resiliente para acciones de campo: si falla por falta de cobertura,
@@ -405,6 +405,23 @@ export async function deleteIncidencia(id) {
   if (error) throw error
 }
 
+// ISO de hace N días (para la ventana de "Mis reportes": resuelto reciente o abierto).
+function isoDaysAgo(days) {
+  return new Date(Date.now() - days * 86400000).toISOString()
+}
+
+// Incidencias reportadas por un empleado: últimos 30 días o aún abiertas.
+export async function myIncidencias(employeeId) {
+  const { data, error } = await supabase
+    .from('incidents')
+    .select('*')
+    .eq('reported_by', employeeId)
+    .or(`created_at.gte.${isoDaysAgo(30)},status.neq.done`)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
 // ---------- TIPOS DE INCIDENCIA (etiquetas editables por el admin) ----------
 export async function listIncidenciaTypes() {
   const { data, error } = await supabase
@@ -491,6 +508,18 @@ export async function updateMaintenance(id, patch) {
 export async function deleteMaintenance(id) {
   const { error } = await supabase.from('maintenance_tasks').delete().eq('id', id)
   if (error) throw error
+}
+
+// Partes de mantenimiento reportados por un empleado: últimos 30 días o aún abiertos.
+export async function myMaintenance(employeeId) {
+  const { data, error } = await supabase
+    .from('maintenance_tasks')
+    .select('*')
+    .eq('reported_by', employeeId)
+    .or(`created_at.gte.${isoDaysAgo(30)},status.neq.done`)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
 }
 
 // ---------- MANTENIMIENTO PREVENTIVO (tareas recurrentes programadas) ----------
@@ -682,6 +711,22 @@ export async function activeAnnouncements(role) {
   return data
 }
 
+// Avisos de un rol para la pestaña "Avisos": vigentes + caducados/archivados
+// de los últimos 30 días, en una sola query (el split activo/anterior se hace
+// en cliente, en useAnnouncements).
+export async function recentAnnouncements(role) {
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('*')
+    .contains('target_roles', [role])
+    .lte('starts_on', todayMadrid())
+    .gte('ends_on', addDaysMadrid(-30))
+    .order('priority', { ascending: false })
+    .order('ends_on', { ascending: true })
+  if (error) throw error
+  return data
+}
+
 export async function listAllAnnouncements() {
   const { data, error } = await supabase
     .from('announcements')
@@ -767,6 +812,18 @@ export async function createFeedback(f) {
 export async function updateFeedback(id, patch) {
   const { error } = await supabase.from('feedback').update(patch).eq('id', id)
   if (error) throw error
+}
+
+// Feedback enviado por un empleado: últimos 30 días o aún pendiente.
+export async function myFeedback(employeeId) {
+  const { data, error } = await supabase
+    .from('feedback')
+    .select('*')
+    .eq('created_by', employeeId)
+    .or(`created_at.gte.${isoDaysAgo(30)},status.eq.pending`)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
 }
 
 export async function deleteFeedback(id) {

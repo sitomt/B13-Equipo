@@ -4,8 +4,7 @@ import { TaskRow } from '../../components/cards'
 import { Card, ProgressRing, SkeletonList, EmptyState } from '../../components/ui'
 import TaskGroup from '../../components/TaskGroup'
 import AlertsBanner from '../../components/AlertsBanner'
-import AnnouncementsOverlay from './AnnouncementsOverlay'
-import { listTemplates, todayCompletions, activeAnnouncements, completeTask } from '../../lib/api'
+import { listTemplates, todayCompletions, completeTask } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { buildAgenda } from '../../lib/agenda'
 import { hourMadrid } from '../../lib/date'
@@ -16,14 +15,14 @@ import { BirthdayNotice } from '../../components/Birthday'
 import NotificationsBanner from '../../components/NotificationsBanner'
 import { Sunrise, Moon, Activity, Check } from '../../components/icons'
 
-export default function CoachToday() {
+// Los avisos vigentes llegan de la View (useAnnouncements); el banner salta
+// a la pestaña "Avisos" del navbar.
+export default function CoachToday({ anns = [], onOpenAnns }) {
   const { employee } = useSession()
   const toast = useToast()
   const tpl = useData(() => listTemplates('coach'), [])
   const comp = useData(() => todayCompletions('coach'), [], { interval: 45000 })
-  const ann = useData(() => activeAnnouncements('coach'), [], { interval: 60000 })
   const [bulkBusy, setBulkBusy] = useState(false)
-  const [annsOpen, setAnnsOpen] = useState(false)
 
   const loading = tpl.loading || comp.loading
   const reload = () => Promise.all([comp.reload(true)])
@@ -67,7 +66,7 @@ export default function CoachToday() {
     <div className="space-y-5 pb-24">
       <BirthdayNotice />
       <Fichaje employee={employee} />
-      <AlertsBanner anns={ann.data || []} onOpen={() => setAnnsOpen(true)} />
+      <AlertsBanner anns={anns} onOpen={onOpenAnns} />
       <NotificationsBanner />
 
       {loading ? (
@@ -135,8 +134,6 @@ export default function CoachToday() {
           </div>
         </Card>
       )}
-
-      {annsOpen && <AnnouncementsOverlay anns={ann.data || []} onClose={() => setAnnsOpen(false)} />}
     </div>
   )
 }

@@ -200,7 +200,8 @@ export default function AdminDashboard() {
         )}
       </CollapsibleSection>
 
-      {/* Progreso operativo */}
+      {/* Progreso operativo: anillos + rondas/repasos recurrentes de hoy (aseos,
+          etc.) en una sola sección — es todo "cómo va el día", un colapsable menos. */}
       <CollapsibleSection icon={Activity} title="Progreso de hoy" persistKey="b13.admin.progreso">
         <div className="grid grid-cols-2 gap-3">
           <Card className="flex flex-col items-center gap-2 p-4">
@@ -218,16 +219,17 @@ export default function AdminDashboard() {
             <p className="text-xs text-ink/40">tareas diarias</p>
           </Card>
         </div>
+        {recurringRows.length > 0 && (
+          <div className="mt-3">
+            <p className="mb-1.5 flex items-center gap-1.5 px-1 text-xs font-bold uppercase tracking-wide text-ink/40">
+              <Refresh size={12} /> Rondas y repasos
+            </p>
+            <Card className="divide-y divide-ink/[0.06]">
+              {recurringRows.map((row) => <RecurringRow key={row.t.id} row={row} />)}
+            </Card>
+          </div>
+        )}
       </CollapsibleSection>
-
-      {/* Rondas y repasos recurrentes de hoy (aseos, etc.) */}
-      {recurringRows.length > 0 && (
-        <CollapsibleSection icon={Refresh} title="Rondas y repasos de hoy" persistKey="b13.admin.rondas">
-          <Card className="divide-y divide-ink/[0.06]">
-            {recurringRows.map((row) => <RecurringRow key={row.t.id} row={row} />)}
-          </Card>
-        </CollapsibleSection>
-      )}
 
       {/* Incidencias y mantenimiento abiertos */}
       <CollapsibleSection icon={Alert} title="Incidencias y mantenimiento" right={<CountBadge tone="ink">{openAll.length}</CountBadge>} persistKey="b13.admin.incidencias">
