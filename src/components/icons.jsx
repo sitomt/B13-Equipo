@@ -55,6 +55,7 @@ export const Sunrise = (p) => (
   <S {...p}><path d="M12 2v6M4.9 10.9l1.4 1.4M2 18h2M20 18h2M17.7 12.3l1.4-1.4M22 22H2" /><path d="M16 18a4 4 0 0 0-8 0" /></S>
 )
 export const Moon = (p) => <S {...p}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></S>
+export const Star = (p) => <S {...p}><path d="M12 2.5l2.9 5.9 6.6 1-4.8 4.6 1.1 6.5L12 17.9 6.2 20.5l1.1-6.5L2.5 9.4l6.6-1Z" /></S>
 export const Refresh = (p) => (
   <S {...p}><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" /><path d="M3 21v-5h5" /></S>
 )

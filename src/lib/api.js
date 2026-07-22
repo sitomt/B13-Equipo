@@ -905,6 +905,33 @@ export async function deleteUtilityDoc(id) {
   if (error) throw error
 }
 
+// ---------- CALENDARIO ANUAL (festividades / horarios especiales / cierres) ----------
+// Solo días excepcionales; el horario semanal normal vive en Horarios (shifts).
+export async function listCalendarEvents(fromDate, toDate) {
+  let q = supabase.from('calendar_events').select('*').order('event_date')
+  if (fromDate) q = q.gte('event_date', fromDate)
+  if (toDate) q = q.lte('event_date', toDate)
+  const { data, error } = await q
+  if (error) throw error
+  return data
+}
+
+export async function createCalendarEvent(event) {
+  const { data, error } = await supabase.from('calendar_events').insert(event).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateCalendarEvent(id, patch) {
+  const { error } = await supabase.from('calendar_events').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteCalendarEvent(id) {
+  const { error } = await supabase.from('calendar_events').delete().eq('id', id)
+  if (error) throw error
+}
+
 // ---------- FEEDBACK (coach → dirección/admin) ----------
 // Tipos: 'cliente' | 'sugerencia' (a dirección) | 'app' (usabilidad).
 export async function listFeedback() {

@@ -6,12 +6,13 @@ import { listTimeBands, listUtilityCategories, listUtilityDocs } from '../../lib
 import { canSeeDoc, categoryIcon } from './utilityMeta'
 import CategoryScreen from './CategoryScreen'
 import CategorySheet from './CategorySheet'
+import CalendarScreen from './CalendarScreen'
 import UtilityArticleOverlay from './UtilityArticleOverlay'
 import TeamOverlay from '../admin/TeamOverlay'
 import AreasEditor from '../../components/AreasEditor'
 import IncidenciaTypesEditor from '../../components/IncidenciaTypesEditor'
 import TimeBandsEditor from '../schedule/TimeBandsEditor'
-import { Search, Chevron, Plus, User, MapPin, Alert, Clock } from '../../components/icons'
+import { Search, Chevron, Plus, User, MapPin, Alert, Clock, Calendar } from '../../components/icons'
 
 // Tile grande del launcher: caja de icono + título (2 líneas) + subtítulo.
 function Tile({ icon: Icon, title, subtitle, onClick, dashed = false }) {
@@ -81,6 +82,7 @@ export default function ClubScreen({ employee }) {
   const [openCat, setOpenCat] = useState(null)   // categoría abierta (overlay)
   const [reading, setReading] = useState(null)    // doc en lectura desde búsqueda
   const [newCat, setNewCat] = useState(false)
+  const [calendar, setCalendar] = useState(false) // calendario anual (overlay)
 
   const categories = cats.data || []
   const allDocs = docsData.data || []
@@ -154,8 +156,23 @@ export default function ClubScreen({ employee }) {
           </Card>
         )
       ) : (
-        /* Launcher: grid de categorías */
+        /* Launcher: calendario + grid de categorías */
         <div className="space-y-6">
+          {/* Acceso destacado al calendario anual (festividades y horarios del gym) */}
+          <button
+            onClick={() => setCalendar(true)}
+            className="flex w-full items-center gap-4 rounded-xl2 bg-ink p-4 text-left text-white shadow-card transition active:scale-[0.98]"
+          >
+            <span className="brand-glow flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10">
+              <Calendar size={24} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-card font-bold leading-tight">Calendario anual</span>
+              <span className="mt-0.5 block text-xs text-white/55">Festividades y horarios del gimnasio</span>
+            </span>
+            <Chevron size={20} className="shrink-0 text-white/40" />
+          </button>
+
           <div className="grid grid-cols-2 gap-3">
             {categories.map((c) => {
               const n = visibleCount(c.id)
@@ -204,6 +221,8 @@ export default function ClubScreen({ employee }) {
         onClose={() => setNewCat(false)}
         onSaved={reloadAll}
       />
+
+      {calendar && <CalendarScreen employee={employee} onClose={() => setCalendar(false)} />}
     </div>
   )
 }

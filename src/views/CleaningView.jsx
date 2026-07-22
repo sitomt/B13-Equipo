@@ -8,11 +8,10 @@ import CleaningToday from './cleaning/CleaningToday'
 import CleaningStats from './cleaning/CleaningStats'
 import ScheduleScreen from './ScheduleScreen'
 import AnnouncementsScreen from './AnnouncementsScreen'
-import ClubScreen from './club/ClubScreen'
 import GeoGate from '../components/GeoGate'
 import { useSession } from '../state/session'
 import { useAnnouncements } from '../lib/useAnnouncements'
-import { Map, BarChart, Calendar, Megaphone, Wrench, Book } from '../components/icons'
+import { Map, BarChart, Calendar, Megaphone, Wrench } from '../components/icons'
 
 // Pestañas de visualización (Estadísticas vive dentro de Ruta, vía control
 // segmentado, replicando el patrón del panel de admin).
@@ -20,9 +19,8 @@ const TABS = [
   { key: 'ruta', label: 'Ruta', icon: Map },
   { key: 'avisos', label: 'Avisos', icon: Megaphone },
   { key: 'horario', label: 'Horarios', icon: Calendar },
-  { key: 'club', label: 'Club', icon: Book },
 ]
-const SUBTITLE = { ruta: 'Tu ruta', avisos: 'Avisos', horario: 'Horarios', club: 'El club' }
+const SUBTITLE = { ruta: 'Tu ruta', avisos: 'Avisos', horario: 'Horarios' }
 
 export default function CleaningView() {
   const { employee } = useSession()
@@ -63,8 +61,6 @@ export default function CleaningView() {
         {/* Horarios queda accesible siempre (lectura); el trabajo del día se
             desbloquea estando en el gimnasio. */}
         {tab === 'horario' && <ScheduleScreen editable={false} />}
-        {/* Club fuera del GeoGate: es consulta (documentos del club). */}
-        {tab === 'club' && <ClubScreen employee={employee} />}
       </div>
 
       <AnnouncementSheet

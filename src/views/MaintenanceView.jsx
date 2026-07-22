@@ -7,18 +7,16 @@ import GeoGate from '../components/GeoGate'
 import MaintenanceToday from './maintenance/MaintenanceToday'
 import ScheduleScreen from './ScheduleScreen'
 import AnnouncementsScreen from './AnnouncementsScreen'
-import ClubScreen from './club/ClubScreen'
 import { useSession } from '../state/session'
 import { useAnnouncements } from '../lib/useAnnouncements'
-import { Wrench, Calendar, Megaphone, Book } from '../components/icons'
+import { Wrench, Calendar, Megaphone } from '../components/icons'
 
 const TABS = [
   { key: 'hoy', label: 'Hoy', icon: Wrench },
   { key: 'avisos', label: 'Avisos', icon: Megaphone },
   { key: 'horario', label: 'Horarios', icon: Calendar },
-  { key: 'club', label: 'Club', icon: Book },
 ]
-const SUBTITLE = { hoy: 'Tus reparaciones', avisos: 'Avisos', horario: 'Horarios', club: 'El club' }
+const SUBTITLE = { hoy: 'Tus reparaciones', avisos: 'Avisos', horario: 'Horarios' }
 
 export default function MaintenanceView() {
   const { employee } = useSession()
@@ -41,8 +39,6 @@ export default function MaintenanceView() {
           <ScheduleScreen editable={false} />
         ) : tab === 'avisos' ? (
           <AnnouncementsScreen store={anns} employee={employee} />
-        ) : tab === 'club' ? (
-          <ClubScreen employee={employee} />
         ) : (
           <GeoGate employee={employee}>
             <MaintenanceToday refresh={refresh} anns={anns.activos} onOpenAnns={() => setTab('avisos')} />

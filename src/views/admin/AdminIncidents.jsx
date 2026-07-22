@@ -9,6 +9,7 @@ import { useToast } from '../../components/Toast'
 import { haptic } from '../../lib/haptics'
 import { Card, Tag, Spinner, CountBadge } from '../../components/ui'
 import SectionCard from '../../components/SectionCard'
+import { SegmentedControl, Select } from '../../components/controls'
 import { Alert, Wrench, Check, Clock, User, Trash, GripVertical } from '../../components/icons'
 import { shortDate, dateTime, daysBetween, relativeTime } from '../../lib/date'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
@@ -216,21 +217,10 @@ export default function AdminIncidents() {
 
   return (
     <div className="space-y-4 pb-24">
-      <div className="flex gap-2">
-        {SOURCES.map((s) => {
-          const Icon = s.icon
-          const on = source === s.key
-          const n = ((s.key === 'mantenimiento' ? maintenance.data : incidencias.data) || []).filter((i) => i.status !== 'done').length
-          return (
-            <button key={s.key} onClick={() => setSource(s.key)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition active:scale-95 ${on ? 'bg-ink text-white' : 'bg-ink/5 text-ink/55'}`}>
-              <Icon size={18} /> {s.label}
-              {n > 0 && <span className={`rounded-full px-1.5 text-xs ${on ? 'bg-white/20' : 'bg-terracotta/15 text-terracotta'}`}>{n}</span>}
-            </button>
-          )
-        })}
-      </div>
+      {/* Cambio de vista entre las dos colas (no es una acción → control segmentado) */}
+      <SegmentedControl options={SOURCES} value={source} onChange={setSource} />
 
+      {/* Resumen informativo: recuento por estado de la cola activa */}
       <div className="grid grid-cols-3 gap-3">
         {[
           { n: list.filter((i) => i.status === 'pending').length, label: 'Pendientes', color: 'text-terracotta', bg: 'bg-terracotta/[0.07]' },
@@ -244,14 +234,13 @@ export default function AdminIncidents() {
         ))}
       </div>
 
-      <div className="flex gap-2">
-        {STATUS_FILTERS.map((f) => (
-          <button key={f.key} onClick={() => setSf(f.key)}
-            className={`min-h-[44px] flex-1 rounded-2xl text-sm font-bold transition active:scale-95 ${sf === f.key ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/60'}`}>
-            {f.label}
-          </button>
-        ))}
-      </div>
+      {/* Filtro de estado del listado (dropdown estándar, no un CTA) */}
+      <Select
+        label="Mostrar"
+        value={sf}
+        onChange={setSf}
+        options={STATUS_FILTERS.map((f) => ({ value: f.key, label: f.label }))}
+      />
 
       {/* La gestión de áreas y etiquetas vive en Club → Gestión. */}
       <SectionCard
