@@ -9,18 +9,20 @@ import CoachToday from './coach/CoachToday'
 import CoachGym from './coach/CoachGym'
 import ScheduleScreen from './ScheduleScreen'
 import AnnouncementsScreen from './AnnouncementsScreen'
+import ClubScreen from './club/ClubScreen'
 import GeoGate from '../components/GeoGate'
 import { useSession } from '../state/session'
 import { useAnnouncements } from '../lib/useAnnouncements'
-import { Activity, Dumbbell, Calendar, Alert, Wrench, Spray, Chat, Megaphone } from '../components/icons'
+import { Activity, Dumbbell, Calendar, Alert, Wrench, Spray, Chat, Megaphone, Book } from '../components/icons'
 
 const TABS = [
   { key: 'hoy', label: 'Hoy', icon: Activity },
   { key: 'gym', label: 'El gym', icon: Dumbbell },
   { key: 'avisos', label: 'Avisos', icon: Megaphone },
   { key: 'horario', label: 'Horarios', icon: Calendar },
+  { key: 'club', label: 'Club', icon: Book },
 ]
-const SUBTITLE = { hoy: 'Tu día', gym: 'El gym', avisos: 'Avisos', horario: 'Horarios' }
+const SUBTITLE = { hoy: 'Tu día', gym: 'El gym', avisos: 'Avisos', horario: 'Horarios', club: 'El club' }
 
 export default function CoachView() {
   const { employee } = useSession()
@@ -46,6 +48,8 @@ export default function CoachView() {
           <ScheduleScreen editable={false} />
         ) : tab === 'avisos' ? (
           <AnnouncementsScreen store={anns} employee={employee} />
+        ) : tab === 'club' ? (
+          <ClubScreen employee={employee} />
         ) : (
           <GeoGate employee={employee}>
             {tab === 'hoy' && <CoachToday anns={anns.activos} onOpenAnns={() => setTab('avisos')} />}

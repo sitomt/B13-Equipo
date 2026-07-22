@@ -1,6 +1,7 @@
 import { myIncidencias, myMaintenance, myFeedback } from '../lib/api'
 import { useData } from '../lib/useData'
-import { Card, CollapsibleSection, Tag, CountBadge } from './ui'
+import { Tag, CountBadge } from './ui'
+import SectionCard from './SectionCard'
 import { User, Check } from './icons'
 import { relativeTime } from '../lib/date'
 
@@ -36,18 +37,17 @@ export default function MyReports({ employee, sources = [] }) {
   if (items.length === 0) return null
 
   return (
-    <CollapsibleSection
+    <SectionCard
       icon={User}
       title="Mis reportes"
       right={<CountBadge tone="ink">{items.length}</CountBadge>}
       persistKey={`b13.myreports.${employee.id}`}
     >
-      <div className="space-y-2">
-        {items.map((r) => {
-          const isFb = r._type === 'feedback'
-          const resolved = !isFb && r.status === 'done'
-          return (
-            <Card key={`${r._type}-${r.id}`} className="p-3">
+      {items.map((r) => {
+        const isFb = r._type === 'feedback'
+        const resolved = !isFb && r.status === 'done'
+        return (
+          <div key={`${r._type}-${r.id}`} className="p-3">
               <div className="mb-0.5 flex items-center gap-2">
                 <span className="text-xs font-semibold text-ink/40">{TYPE_LABEL[r._type]}</span>
                 {isFb ? (
@@ -63,13 +63,12 @@ export default function MyReports({ employee, sources = [] }) {
                   <Check size={12} /> Resuelta {relativeTime(r.resolved_at)}{r.resolved_by_name ? ` · ${r.resolved_by_name}` : ''}
                 </p>
               )}
-              {resolved && r.resolution_notes && (
-                <p className="mt-1 text-xs text-ink/50">{r.resolution_notes}</p>
-              )}
-            </Card>
-          )
-        })}
-      </div>
-    </CollapsibleSection>
+            {resolved && r.resolution_notes && (
+              <p className="mt-1 text-xs text-ink/50">{r.resolution_notes}</p>
+            )}
+          </div>
+        )
+      })}
+    </SectionCard>
   )
 }

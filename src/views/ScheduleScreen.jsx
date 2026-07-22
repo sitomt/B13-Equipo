@@ -3,7 +3,8 @@ import { listEmployees, listShifts, rangeTimeEntries, listTimeBands, getSchedule
 import { useData } from '../lib/useData'
 import { useSession } from '../state/session'
 import { WeekStepper } from '../components/controls'
-import { Card, CollapsibleSection, Tag, SkeletonList, EmptyState, Avatar } from '../components/ui'
+import { Tag, SkeletonList, EmptyState, Avatar } from '../components/ui'
+import SectionCard from '../components/SectionCard'
 import TimeBandGrid, { groupShiftsByBand } from './schedule/TimeBandGrid'
 import { User, Lock, Alert } from '../components/icons'
 import { weekBounds, monthBounds } from '../lib/date'
@@ -80,9 +81,8 @@ export default function ScheduleScreen({ editable = false }) {
       )}
 
       {/* Horas trabajadas (privadas por empleado) */}
-      <CollapsibleSection icon={User} title={isAdmin ? 'Horas trabajadas del equipo' : 'Mis horas trabajadas'} persistKey="b13.horario.horas">
-        <Card className="divide-y divide-ink/[0.06]">
-          {hoursStaff
+      <SectionCard icon={User} title={isAdmin ? 'Horas trabajadas del equipo' : 'Mis horas trabajadas'} persistKey="b13.horario.horas">
+        {hoursStaff
             .map((e) => ({ e, w: weekWorked.get(e.id) || 0, m: monthWorked.get(e.id) || 0 }))
             .sort((a, b) => b.w - a.w)
             .map(({ e, w, m }, i) => {
@@ -106,9 +106,8 @@ export default function ScheduleScreen({ editable = false }) {
                 </div>
               )
             })}
-        </Card>
-        <p className="mt-2 px-1 text-xs text-ink/40">Calculado de los fichajes (descontando pausas y comidas).</p>
-      </CollapsibleSection>
+        <p className="px-4 py-2.5 text-xs text-ink/40">Calculado de los fichajes (descontando pausas y comidas).</p>
+      </SectionCard>
     </div>
   )
 }

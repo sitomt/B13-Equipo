@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { listFeedback, updateFeedback, deleteFeedback } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { useToast } from '../../components/Toast'
-import { Card, SectionTitle, Tag, CountBadge, Spinner, EmptyState } from '../../components/ui'
+import { Card, Tag, CountBadge, Spinner } from '../../components/ui'
+import SectionCard from '../../components/SectionCard'
 import { Chat, User, Check, Trash } from '../../components/icons'
 import { relativeTime, dateTime } from '../../lib/date'
 
@@ -18,12 +19,14 @@ const FILTERS = [
   { key: 'app', label: 'App' },
 ]
 
-function FeedbackCard({ f, onToggle, onDelete }) {
+function FeedbackCard({ f, onToggle, onDelete, flat = false }) {
   const [confirmDel, setConfirmDel] = useState(false)
   const done = f.status === 'done'
   const meta = TYPE_META[f.type] || { label: f.type, pill: 'ink' }
+  // `flat`: sin Card exterior, para vivir como fila del divide-y de un SectionCard.
+  const Wrap = flat ? 'div' : Card
   return (
-    <Card className={`overflow-hidden ${done ? 'opacity-70' : ''}`}>
+    <Wrap className={`${flat ? '' : 'overflow-hidden'} ${done ? 'opacity-70' : ''}`}>
       <div className="p-4">
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold text-ink/45">{meta.label}</span>
@@ -53,7 +56,7 @@ function FeedbackCard({ f, onToggle, onDelete }) {
           </button>
         )}
       </div>
-    </Card>
+    </Wrap>
   )
 }
 
@@ -82,35 +85,40 @@ export default function AdminFeedback() {
 
   return (
     <div className="space-y-4 pb-24">
-      <SectionTitle icon={Chat} right={<CountBadge tone={pending.length ? 'ochre' : 'sage'}>{pending.length} sin ver</CountBadge>}>
-        Feedback del equipo
-      </SectionTitle>
-
-      <div className="flex gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`flex-1 rounded-2xl min-h-[44px] text-sm font-bold transition active:scale-95 ${filter === f.key ? 'bg-ink text-white' : 'bg-ink/5 text-ink/60'}`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {fb.loading ? (
-        <div className="flex justify-center py-10"><Spinner className="h-7 w-7" /></div>
-      ) : list.length === 0 ? (
-        <EmptyState icon={Chat} title="Sin feedback" subtitle="Aquí aparecerá el feedback que envíen los coaches." />
-      ) : (
-        <div className="space-y-3">
-          {list.map((f, idx) => (
-            <div key={f.id} className="animate-rise-in" style={{ animationDelay: `${idx * 35}ms` }}>
-              <FeedbackCard f={f} onToggle={onToggle} onDelete={onDelete} />
-            </div>
+      <SectionCard
+        icon={Chat}
+        title="Feedback del equipo"
+        right={<CountBadge tone={pending.length ? 'ochre' : 'sage'}>{pending.length} sin ver</CountBadge>}
+        persistKey="b13.admin.feedback"
+      >
+        {/* Filtros como primera fila del divide-y */}
+        <div className="flex gap-2 p-3">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`flex-1 rounded-2xl min-h-[44px] text-sm font-bold transition active:scale-95 ${filter === f.key ? 'bg-ink text-white' : 'bg-ink/5 text-ink/60'}`}
+            >
+              {f.label}
+            </button>
           ))}
         </div>
-      )}
+
+        {fb.loading ? (
+          <div className="flex justify-center py-8"><Spinner className="h-6 w-6" /></div>
+        ) : list.length === 0 ? (
+          <div className="flex items-center gap-2 p-4 text-xs text-ink/40">
+            <Chat size={16} />
+            <span>Aquí aparecerá el feedback que envíen los coaches.</span>
+          </div>
+        ) : (
+          list.map((f, idx) => (
+            <div key={f.id} className="animate-rise-in" style={{ animationDelay: `${idx * 35}ms` }}>
+              <FeedbackCard f={f} onToggle={onToggle} onDelete={onDelete} flat />
+            </div>
+          ))
+        )}
+      </SectionCard>
     </div>
   )
 }

@@ -1,7 +1,5 @@
-import { useEffect, useState, useId } from 'react'
+import { useEffect, useId } from 'react'
 import Sheet from './Sheet'
-import { ChevronDown } from './icons'
-import { haptic } from '../lib/haptics'
 
 export function Card({ className = '', children, ...p }) {
   return (
@@ -182,68 +180,6 @@ export function ProgressRing({ value, size = 56, stroke = 6, color = '#B98A5E', 
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">{children}</div>
-    </div>
-  )
-}
-
-export function SectionTitle({ icon: Icon, children, right }) {
-  return (
-    <div className="mb-2.5 flex items-center justify-between px-1">
-      <div className="flex items-center gap-2.5 text-ink/75">
-        {Icon && (
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-bronze/12 text-bronze-dark">
-            <Icon size={15} />
-          </span>
-        )}
-        <h2 className="font-display text-section font-extrabold tracking-tight">{children}</h2>
-      </div>
-      {right}
-    </div>
-  )
-}
-
-// Sección con cabecera plegable cuyo estado abierto/cerrado se recuerda en
-// localStorage (clave `persistKey`). El contador `right` se ve siempre, incluso
-// plegado. Para persistir por usuario, incluye el id del empleado en persistKey.
-export function CollapsibleSection({ icon: Icon, title, right, persistKey, defaultOpen = true, children }) {
-  const [open, setOpen] = useState(() => {
-    try {
-      const v = persistKey ? localStorage.getItem(persistKey) : null
-      return v === null ? defaultOpen : v === '1'
-    } catch {
-      return defaultOpen
-    }
-  })
-
-  function toggle() {
-    haptic('tap')
-    setOpen((o) => {
-      const next = !o
-      try { if (persistKey) localStorage.setItem(persistKey, next ? '1' : '0') } catch { /* ignora quota/privado */ }
-      return next
-    })
-  }
-
-  return (
-    <div>
-      {/* `right` va FUERA del botón de plegado para que pueda ser interactivo (p.ej. "Añadir"). */}
-      <div className="mb-2.5 flex items-center justify-between px-1">
-        <button
-          onClick={toggle}
-          aria-expanded={open}
-          className="flex flex-1 items-center gap-2.5 text-ink/75 active:opacity-70"
-        >
-          {Icon && (
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-bronze/12 text-bronze-dark">
-              <Icon size={15} />
-            </span>
-          )}
-          <span className="font-display text-section font-extrabold tracking-tight">{title}</span>
-          <ChevronDown size={18} className={`text-ink/30 transition-transform ${open ? 'rotate-180' : ''}`} />
-        </button>
-        {right}
-      </div>
-      {open && <div className="animate-rise-in">{children}</div>}
     </div>
   )
 }

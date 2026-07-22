@@ -13,20 +13,23 @@ import AdminStats from './AdminStats'
 import AdminFeedback from './AdminFeedback'
 import ScheduleScreen from '../ScheduleScreen'
 import ScheduleEditorScreen from '../schedule/ScheduleEditorScreen'
+import ClubScreen from '../club/ClubScreen'
 import { useSession } from '../../state/session'
+import { useAnnouncements } from '../../lib/useAnnouncements'
 import { Activity, Megaphone, Wrench, Calendar, BarChart, Chat, Spray, Alert, Book } from '../../components/icons'
 
-// 4 pestañas de VISUALIZACIÓN (Stats vive dentro de Resumen y Feedback dentro
-// de Avisos, vía control segmentado). Equipo vive en el Perfil (avatar) y la
-// Agenda en su pantalla única ("+ → Agenda"). Toda creación/edición sale del
-// "+" del navbar.
+// 5 pestañas de VISUALIZACIÓN (Stats vive dentro de Resumen y Feedback dentro
+// de Avisos, vía control segmentado). Equipo, áreas, etiquetas y franjas viven
+// en Club → Gestión; la Agenda en su pantalla única ("+ → Agenda"). Toda
+// creación/edición sale del "+" del navbar.
 const TABS = [
   { key: 'dash', label: 'Resumen', icon: Activity },
   { key: 'horario', label: 'Horarios', icon: Calendar },
   { key: 'inc', label: 'Incidencias', icon: Wrench },
   { key: 'comm', label: 'Avisos', icon: Megaphone },
+  { key: 'club', label: 'Club', icon: Book },
 ]
-const SUBTITLE = { dash: 'Panel de control', horario: 'Horarios', inc: 'Incidencias', comm: 'Avisos' }
+const SUBTITLE = { dash: 'Panel de control', horario: 'Horarios', inc: 'Incidencias', comm: 'Avisos', club: 'El club' }
 
 export default function AdminView() {
   const { employee } = useSession()
@@ -40,6 +43,10 @@ export default function AdminView() {
   const [schedEditor, setSchedEditor] = useState(false)
   const [agendaEditor, setAgendaEditor] = useState(false)
 
+  // Avisos + conversación del admin: alimenta la pestaña Avisos y el badge
+  // del navbar (solo comentarios nuevos; el admin no tiene avisos "sin leer").
+  const anns = useAnnouncements('admin', employee)
+
   return (
     <Screen>
       <Header subtitle={SUBTITLE[tab]} primary={tab === 'dash'} />
@@ -51,7 +58,7 @@ export default function AdminView() {
               options={[{ key: 'hoy', label: 'Hoy', icon: Activity }, { key: 'hist', label: 'Histórico', icon: BarChart }]}
               value={dashView} onChange={setDashView}
             />
-            {dashView === 'hoy' ? <AdminDashboard /> : <AdminStats />}
+            {dashView === 'hoy' ? <AdminDashboard onOpenAnns={() => { setTab('comm'); setCommView('avisos') }} /> : <AdminStats />}
           </>
         )}
         {tab === 'horario' && <ScheduleScreen />}
@@ -63,9 +70,11 @@ export default function AdminView() {
               options={[{ key: 'avisos', label: 'Avisos', icon: Megaphone }, { key: 'feedback', label: 'Feedback', icon: Chat }]}
               value={commView} onChange={setCommView}
             />
-            {commView === 'avisos' ? <AdminAnnouncements /> : <AdminFeedback />}
+            {commView === 'avisos' ? <AdminAnnouncements store={anns} /> : <AdminFeedback />}
           </>
         )}
+        {/* Club: documentos del gym + gestión (equipo, áreas, etiquetas, franjas). */}
+        {tab === 'club' && <ClubScreen employee={employee} />}
       </div>
 
       <AnnouncementSheet open={annOpen} onClose={() => setAnnOpen(false)} employee={employee} />
@@ -76,7 +85,7 @@ export default function AdminView() {
       {agendaEditor && <AgendaEditorScreen onClose={() => setAgendaEditor(false)} />}
 
       <BottomNav
-        tabs={TABS}
+        tabs={TABS.map((t) => (t.key === 'comm' ? { ...t, badge: anns.unreadCount || undefined } : t))}
         active={tab}
         onChange={setTab}
         actions={[

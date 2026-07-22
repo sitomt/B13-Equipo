@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { listEmployees, listTemplates, rangeCompletions, rangeAdHoc, rangeTimeEntries } from '../../lib/api'
 import { useData } from '../../lib/useData'
-import { Card, CollapsibleSection, ProgressRing, SkeletonList, EmptyState, Avatar } from '../../components/ui'
+import { Card, ProgressRing, SkeletonList, EmptyState, Avatar } from '../../components/ui'
+import SectionCard from '../../components/SectionCard'
 import { WeekStepper } from '../../components/controls'
 import { Activity, Spray, Check, Clock, User, Chevron, Refresh } from '../../components/icons'
 import { dayBounds, weekBounds, monthBounds, weekdayOf, dowLabel, timeHM, isTodayStr, todayMadrid } from '../../lib/date'
@@ -123,12 +124,11 @@ export default function CleaningStats() {
 
           {/* Día: detalle de la ruta; Semana/Mes: barras por día */}
           {period === 'day' ? (
-            <CollapsibleSection icon={Spray} title="Ruta del día" persistKey="b13.cleanstats.ruta">
+            <SectionCard icon={Spray} title="Ruta del día" persistKey="b13.cleanstats.ruta">
               {data.dayDetail.length === 0 ? (
-                <EmptyState icon={Spray} title="Sin ruta" subtitle="No había tareas programadas." />
+                <div className="p-3"><EmptyState icon={Spray} title="Sin ruta" subtitle="No había tareas programadas." /></div>
               ) : (
-                <Card className="divide-y divide-ink/[0.06]">
-                  {data.dayDetail.map((t) => (
+                data.dayDetail.map((t) => (
                     <div key={t.id} className="flex items-center gap-3 px-3 py-2.5">
                       <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${t.done ? 'bg-sage text-white' : 'border-2 border-ink/15'}`}>
                         {t.done && <Check size={14} strokeWidth={3} />}
@@ -140,13 +140,12 @@ export default function CleaningStats() {
                         <span className="flex items-center gap-1 text-xs text-ink/35"><Clock size={11} />falta</span>
                       )}
                     </div>
-                  ))}
-                </Card>
+                ))
               )}
-            </CollapsibleSection>
+            </SectionCard>
           ) : (
-            <CollapsibleSection icon={Activity} title="Cumplimiento por día" persistKey="b13.cleanstats.perday">
-              <Card className="p-4">
+            <SectionCard icon={Activity} title="Cumplimiento por día" persistKey="b13.cleanstats.perday">
+              <div className="p-4">
                 <div className="flex items-end justify-between gap-1" style={{ height: maxBar + 20 }}>
                   {data.perDay.map((d) => (
                     <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
@@ -158,14 +157,13 @@ export default function CleaningStats() {
                     </div>
                   ))}
                 </div>
-              </Card>
-            </CollapsibleSection>
+              </div>
+            </SectionCard>
           )}
 
           {/* Ranking por empleada */}
-          <CollapsibleSection icon={User} title="Trabajo por empleada" persistKey="b13.cleanstats.ranking">
-            <Card className="divide-y divide-ink/[0.06]">
-              {data.ranking.map(({ e, tasks, min }, i) => (
+          <SectionCard icon={User} title="Trabajo por empleada" persistKey="b13.cleanstats.ranking">
+            {data.ranking.map(({ e, tasks, min }, i) => (
                 <div key={e.id} className="flex animate-rise-in items-center gap-3 p-3" style={{ animationDelay: `${i * 35}ms` }}>
                   <span className="w-4 text-center font-display text-base font-extrabold text-ink/30">{i + 1}</span>
                   <Avatar emp={e} />
@@ -178,9 +176,8 @@ export default function CleaningStats() {
                     <p className="text-[10px] text-ink/40">tareas</p>
                   </div>
                 </div>
-              ))}
-            </Card>
-          </CollapsibleSection>
+            ))}
+          </SectionCard>
         </>
       )}
     </div>

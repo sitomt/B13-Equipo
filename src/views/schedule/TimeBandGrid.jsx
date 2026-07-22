@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import { Card, Avatar } from '../../components/ui'
+import { useEffect, useRef, useState } from 'react'
+import { Avatar } from '../../components/ui'
 import { Plus } from '../../components/icons'
 import { dowLabel, parseDate, isTodayStr } from '../../lib/date'
 
@@ -38,6 +38,13 @@ export function groupShiftsByBand(shifts, bands) {
 // ============================================================================
 export default function TimeBandGrid({ bands, days, byBand, extra, empById, employee, editable = false, onCellTap }) {
   const scroller = useRef(null)
+  // Affordance de swipe: fade en el filo derecho mientras quede contenido oculto.
+  const [atEnd, setAtEnd] = useState(false)
+
+  function updateAtEnd(el) {
+    if (!el) return
+    setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 8)
+  }
 
   // Al montar, colocar el día de hoy como primera columna visible.
   useEffect(() => {
@@ -45,6 +52,7 @@ export default function TimeBandGrid({ bands, days, byBand, extra, empById, empl
     if (!el) return
     const idx = days.findIndex((d) => isTodayStr(d))
     if (idx > 0) el.scrollLeft = idx * 120
+    updateAtEnd(el)
   }, [days.join?.('') || days])
 
   const hasExtra = extra && [...extra.values()].some((arr) => arr.length)
@@ -81,9 +89,18 @@ export default function TimeBandGrid({ bands, days, byBand, extra, empById, empl
   const rowCols = { gridTemplateColumns: `76px repeat(${days.length}, 120px)` }
 
   return (
-    <Card className="overflow-hidden p-0">
+    /* Full-bleed: -mx-4 compensa el px-4 del wrapper de cada vista para que el
+       cuadrante llegue al borde de la pantalla; el corte al filo + fade comunican
+       que se puede deslizar para ver más días. */
+    <div className="relative -mx-4">
+      <div className="overflow-hidden border-y border-ink/[0.06] bg-white shadow-card">
       {/* scroll-padding = ancho de la columna sticky: el día "snapeado" aparece justo tras ella */}
-      <div ref={scroller} className="no-scrollbar snap-x snap-proximity overflow-x-auto" style={{ scrollPaddingLeft: '76px' }}>
+      <div
+        ref={scroller}
+        onScroll={(e) => updateAtEnd(e.currentTarget)}
+        className="no-scrollbar snap-x snap-proximity overflow-x-auto"
+        style={{ scrollPaddingLeft: '76px' }}
+      >
         <div className="w-max min-w-full">
           {/* Fila de días */}
           <div className="grid" style={rowCols}>
@@ -134,6 +151,14 @@ export default function TimeBandGrid({ bands, days, byBand, extra, empById, empl
           ))}
         </div>
       </div>
-    </Card>
+      </div>
+      {/* Fade del filo derecho: desaparece al llegar al final del scroll */}
+      {!atEnd && (
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-sand to-transparent"
+          aria-hidden="true"
+        />
+      )}
+    </div>
   )
 }

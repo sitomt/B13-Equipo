@@ -6,13 +6,14 @@ import { useData } from '../../lib/useData'
 import { buildAgenda } from '../../lib/agenda'
 import { useState, useEffect } from 'react'
 import { todayMadrid, timeHM, relativeTime, appliesToday } from '../../lib/date'
-import { Card, CollapsibleSection, Tag, CountBadge, ProgressRing, Spinner, Avatar } from '../../components/ui'
-import { AnnouncementCard } from '../../components/cards'
+import { Card, Tag, CountBadge, ProgressRing, Spinner, Avatar } from '../../components/ui'
+import SectionCard from '../../components/SectionCard'
+import AlertsBanner from '../../components/AlertsBanner'
 import { BirthdayNotice } from '../../components/Birthday'
 import Fichaje from '../../components/Fichaje'
 import NotificationsBanner from '../../components/NotificationsBanner'
 import { useSession } from '../../state/session'
-import { User, Activity, Alert, Megaphone, Spray, Coffee, Utensils, Check, Refresh, ChevronDown, Clock } from '../../components/icons'
+import { User, Activity, Alert, Spray, Coffee, Utensils, Check, Refresh, ChevronDown, Clock } from '../../components/icons'
 
 const STATUS_META = {
   working: { label: 'En turno', color: 'bg-sage', text: 'text-sage', icon: Activity },
@@ -61,7 +62,7 @@ function RecurringRow({ row }) {
   )
 }
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ onOpenAnns }) {
   const { employee } = useSession()
   const emp = useData(listEmployees, [])
   const entries = useData(allTodayEntries, [], { interval: 15000 })
@@ -133,6 +134,8 @@ export default function AdminDashboard() {
       <BirthdayNotice />
       {/* El responsable también ficha (sin geocerca: desde cualquier sitio) */}
       <Fichaje employee={employee} />
+      {/* Avisos activos: banner compacto que salta a Comunicación → Avisos */}
+      <AlertsBanner anns={activeAnn} onOpen={onOpenAnns} />
       <NotificationsBanner />
       {/* Frescura de datos: es información, no un estado → texto plano discreto */}
       <p className="flex items-center gap-2 px-1">
@@ -156,26 +159,17 @@ export default function AdminDashboard() {
         </Card>
       )}
 
-      {/* Avisos activos: TODO lo que está activo en el gym ahora (dirección + equipo).
-          Los de dirección salen destacados; los del equipo, discretos con su autor. */}
-      {activeAnn.length > 0 && (
-        <CollapsibleSection icon={Megaphone} title="Avisos activos" right={<CountBadge>{activeAnn.length}</CountBadge>} persistKey="b13.admin.avisos">
-          <div className="space-y-2">
-            {activeAnn.map((a) => <AnnouncementCard key={a.id} a={a} />)}
-          </div>
-        </CollapsibleSection>
-      )}
-
       {/* Quién está — solo quien está fichado (en turno o en pausa/comida).
           Se actualiza solo: 'entries' refresca cada 15s al fichar cualquiera. */}
-      <CollapsibleSection icon={User} title="Equipo ahora" right={<CountBadge tone={present.length ? 'sage' : 'ink'}>{present.length}</CountBadge>} persistKey="b13.admin.equipo">
-        {present.length === 0 ? (
-          <Card className="flex items-center gap-2 p-4 text-ink/45">
-            <User size={18} /> <span className="text-sm font-semibold">Nadie fichado ahora mismo</span>
-          </Card>
-        ) : (
-          <Card className="divide-y divide-ink/[0.06]">
-            {present.map(({ emp: e, status, entries: ents }) => {
+      <SectionCard
+        icon={User}
+        title="Equipo ahora"
+        right={<CountBadge tone={present.length ? 'sage' : 'ink'}>{present.length}</CountBadge>}
+        persistKey="b13.admin.equipo"
+        empty={{ icon: User, text: 'Nadie fichado ahora mismo' }}
+      >
+        {present.length > 0 &&
+          present.map(({ emp: e, status, entries: ents }) => {
               const m = STATUS_META[status]
               const clockIn = ents.find((x) => x.kind === 'clock_in')
               return (
@@ -196,64 +190,58 @@ export default function AdminDashboard() {
                 </div>
               )
             })}
-          </Card>
-        )}
-      </CollapsibleSection>
+      </SectionCard>
 
       {/* Progreso operativo: anillos + rondas/repasos recurrentes de hoy (aseos,
           etc.) en una sola sección — es todo "cómo va el día", un colapsable menos. */}
-      <CollapsibleSection icon={Activity} title="Progreso de hoy" persistKey="b13.admin.progreso">
-        <div className="grid grid-cols-2 gap-3">
-          <Card className="flex flex-col items-center gap-2 p-4">
+      <SectionCard icon={Activity} title="Progreso de hoy" persistKey="b13.admin.progreso">
+        <div className="grid grid-cols-2 gap-4 p-4">
+          <div className="flex flex-col items-center gap-2">
             <ProgressRing value={coachProg.dayProgress} size={72}>
               <span className="font-display text-lg font-extrabold">{Math.round(coachProg.dayProgress * 100)}%</span>
             </ProgressRing>
             <p className="text-sm font-semibold text-ink/60">Agenda coaches</p>
             <p className="text-xs text-ink/40">{coachProg.dayDone}/{coachProg.dayTotal} tareas</p>
-          </Card>
-          <Card className="flex flex-col items-center gap-2 p-4">
+          </div>
+          <div className="flex flex-col items-center gap-2">
             <ProgressRing value={cleanDaily.length ? cleanDailyDone / cleanDaily.length : 0} size={72} color="#5B7A8C">
               <span className="font-display text-lg font-extrabold">{cleanDailyDone}/{cleanDaily.length}</span>
             </ProgressRing>
             <p className="text-sm font-semibold text-ink/60">Ruta limpieza</p>
             <p className="text-xs text-ink/40">tareas diarias</p>
-          </Card>
+          </div>
         </div>
         {recurringRows.length > 0 && (
-          <div className="mt-3">
-            <p className="mb-1.5 flex items-center gap-1.5 px-1 text-xs font-bold uppercase tracking-wide text-ink/40">
-              <Refresh size={12} /> Rondas y repasos
-            </p>
-            <Card className="divide-y divide-ink/[0.06]">
-              {recurringRows.map((row) => <RecurringRow key={row.t.id} row={row} />)}
-            </Card>
-          </div>
+          <p className="flex items-center gap-1.5 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-ink/40">
+            <Refresh size={12} /> Rondas y repasos
+          </p>
         )}
-      </CollapsibleSection>
+        {recurringRows.map((row) => <RecurringRow key={row.t.id} row={row} />)}
+      </SectionCard>
 
       {/* Incidencias y mantenimiento abiertos */}
-      <CollapsibleSection icon={Alert} title="Incidencias y mantenimiento" right={<CountBadge tone="ink">{openAll.length}</CountBadge>} persistKey="b13.admin.incidencias">
-        {openAll.length === 0 ? (
-          <Card className="flex items-center gap-2 p-4 text-sage"><Check size={18} /> <span className="text-sm font-semibold">Nada pendiente</span></Card>
-        ) : (
-          <div className="space-y-2">
-            {openAll.map((i) => (
-              <Card key={i._src + i.id} className="flex items-center gap-3 p-3">
-                <div className={`h-9 w-1.5 rounded-full ${i.priority === 'urgent' ? 'bg-terracotta' : 'bg-ochre'}`} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-ink">{i.title}</p>
-                  <p className="flex items-center gap-1.5 text-xs text-ink/40">
-                    {/* El tipo es información: texto plano */}
-                    <span className={`font-semibold ${i._src === 'mant' ? 'text-bronze-dark' : 'text-stone'}`}>{i._src === 'mant' ? 'Mant.' : 'Interna'}</span>
-                    {i.zone} · {relativeTime(i.created_at)}
-                  </p>
-                </div>
-                <Tag status={i.status} />
-              </Card>
-            ))}
+      <SectionCard
+        icon={Alert}
+        title="Incidencias y mantenimiento"
+        right={<CountBadge tone="ink">{openAll.length}</CountBadge>}
+        persistKey="b13.admin.incidencias"
+        empty={{ icon: Check, text: 'Nada pendiente' }}
+      >
+        {openAll.map((i) => (
+          <div key={i._src + i.id} className="flex items-center gap-3 p-3">
+            <div className={`h-9 w-1.5 rounded-full ${i.priority === 'urgent' ? 'bg-terracotta' : 'bg-ochre'}`} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold text-ink">{i.title}</p>
+              <p className="flex items-center gap-1.5 text-xs text-ink/40">
+                {/* El tipo es información: texto plano */}
+                <span className={`font-semibold ${i._src === 'mant' ? 'text-bronze-dark' : 'text-stone'}`}>{i._src === 'mant' ? 'Mant.' : 'Interna'}</span>
+                {i.zone} · {relativeTime(i.created_at)}
+              </p>
+            </div>
+            <Tag status={i.status} />
           </div>
-        )}
-      </CollapsibleSection>
+        ))}
+      </SectionCard>
     </div>
   )
 }

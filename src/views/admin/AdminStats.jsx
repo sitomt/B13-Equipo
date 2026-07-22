@@ -3,7 +3,8 @@ import {
   listEmployees, listAllTemplates, rangeCompletions, rangeTimeEntries, listIncidencias, listMaintenance,
 } from '../../lib/api'
 import { useData } from '../../lib/useData'
-import { Card, CollapsibleSection, ProgressRing, Spinner, CountBadge, Avatar } from '../../components/ui'
+import { Card, ProgressRing, Spinner, CountBadge, Avatar } from '../../components/ui'
+import SectionCard from '../../components/SectionCard'
 import { Activity, Refresh, Alert, Clock, Check, User } from '../../components/icons'
 import { weekBounds, weekdayOf, isTodayStr, dowLabel, todayMadrid } from '../../lib/date'
 import { workedMinutesByEmployee, fmtMinutes } from '../../lib/hours'
@@ -108,8 +109,8 @@ export default function AdminStats() {
       </div>
 
       {/* Cumplimiento por día */}
-      <CollapsibleSection icon={Activity} title="Cumplimiento por día" persistKey="b13.adminstats.perday">
-        <Card className="p-4">
+      <SectionCard icon={Activity} title="Cumplimiento por día" persistKey="b13.adminstats.perday">
+        <div className="p-4">
           <div className="flex items-end justify-between gap-2" style={{ height: maxBar + 24 }}>
             {data.perDay.map((d) => (
               <div key={d.date} className="flex flex-1 flex-col items-center gap-1.5">
@@ -124,16 +125,15 @@ export default function AdminStats() {
               </div>
             ))}
           </div>
-        </Card>
-      </CollapsibleSection>
+        </div>
+      </SectionCard>
 
       {/* Pendiente hoy */}
-      <CollapsibleSection icon={Alert} title="¿Queda algo por hacer hoy?" right={<CountBadge tone={data.pendingToday.length ? 'ochre' : 'sage'}>{data.pendingToday.length}</CountBadge>} persistKey="b13.adminstats.pending">
+      <SectionCard icon={Alert} title="¿Queda algo por hacer hoy?" right={<CountBadge tone={data.pendingToday.length ? 'ochre' : 'sage'}>{data.pendingToday.length}</CountBadge>} persistKey="b13.adminstats.pending">
         {data.pendingToday.length === 0 ? (
-          <Card className="flex items-center gap-2 p-4 text-sage"><Check size={18} /><span className="text-sm font-semibold">Todo hecho por hoy 🎉</span></Card>
+          <div className="flex items-center gap-2 p-4 text-sage"><Check size={18} /><span className="text-sm font-semibold">Todo hecho por hoy 🎉</span></div>
         ) : (
-          <Card className="divide-y divide-ink/[0.06]">
-            {data.pendingToday.map((t) => (
+          data.pendingToday.map((t) => (
               <div key={t.id} className="flex items-center gap-3 p-3">
                 <span className="h-7 w-1.5 rounded-full bg-ochre" />
                 <div className="min-w-0 flex-1">
@@ -142,25 +142,23 @@ export default function AdminStats() {
                 </div>
                 {t.scheduled_time && <span className="flex items-center gap-1 text-xs text-ink/40"><Clock size={12} />{t.scheduled_time.slice(0, 5)}</span>}
               </div>
-            ))}
-          </Card>
+          ))
         )}
-      </CollapsibleSection>
+      </SectionCard>
 
       {/* Incidencias de la semana */}
-      <CollapsibleSection icon={Alert} title="Incidencias" persistKey="b13.adminstats.inc">
-        <div className="grid grid-cols-3 gap-3">
-          <Card className="p-3 text-center"><p className="font-display text-2xl font-extrabold text-terracotta">{data.incCreated}</p><p className="text-xs text-ink/45">nuevas</p></Card>
-          <Card className="p-3 text-center"><p className="font-display text-2xl font-extrabold text-sage">{data.incResolved}</p><p className="text-xs text-ink/45">resueltas</p></Card>
-          <Card className="p-3 text-center"><p className="font-display text-2xl font-extrabold text-ochre">{data.incOpen}</p><p className="text-xs text-ink/45">abiertas</p></Card>
+      <SectionCard icon={Alert} title="Incidencias" persistKey="b13.adminstats.inc">
+        <div className="grid grid-cols-3 gap-3 p-3">
+          <div className="text-center"><p className="font-display text-2xl font-extrabold text-terracotta">{data.incCreated}</p><p className="text-xs text-ink/45">nuevas</p></div>
+          <div className="text-center"><p className="font-display text-2xl font-extrabold text-sage">{data.incResolved}</p><p className="text-xs text-ink/45">resueltas</p></div>
+          <div className="text-center"><p className="font-display text-2xl font-extrabold text-ochre">{data.incOpen}</p><p className="text-xs text-ink/45">abiertas</p></div>
         </div>
-      </CollapsibleSection>
+      </SectionCard>
 
       {/* Ranking de actividad */}
       {data.ranking.length > 0 && (
-        <CollapsibleSection icon={User} title="Actividad por persona" persistKey="b13.adminstats.ranking">
-          <Card className="divide-y divide-ink/[0.06]">
-            {data.ranking.map((r, i) => {
+        <SectionCard icon={User} title="Actividad por persona" persistKey="b13.adminstats.ranking">
+          {data.ranking.map((r, i) => {
               const e = (emp.data || []).find((x) => x.name === r.name)
               return (
                 <div key={r.name} className="flex items-center gap-3 p-3">
@@ -170,9 +168,8 @@ export default function AdminStats() {
                   <span className="font-display text-xl font-extrabold text-ink">{r.n}</span>
                 </div>
               )
-            })}
-          </Card>
-        </CollapsibleSection>
+          })}
+        </SectionCard>
       )}
     </div>
   )

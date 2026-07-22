@@ -1,7 +1,8 @@
 import { TaskRow, AdHocCard } from '../../components/cards'
 import Fichaje from '../../components/Fichaje'
-import { Card, CollapsibleSection, CountBadge, ProgressRing, SkeletonList, EmptyState } from '../../components/ui'
+import { Card, CountBadge, ProgressRing, SkeletonList, EmptyState } from '../../components/ui'
 import TaskGroup from '../../components/TaskGroup'
+import SectionCard from '../../components/SectionCard'
 import AlertsBanner from '../../components/AlertsBanner'
 import { listTemplates, todayCompletions, listAdHoc } from '../../lib/api'
 import { useData } from '../../lib/useData'
@@ -67,7 +68,7 @@ export default function CleaningToday({ anns = [], onOpenAnns }) {
 
           <div className="divide-y divide-ink/[0.06]">
             {daily.length > 0 && (
-              <TaskGroup icon={Map} title="Ruta diaria" done={dailyDone} total={daily.length} defaultOpen>
+              <TaskGroup icon={Map} title="Ruta diaria" done={dailyDone} total={daily.length} defaultOpen persistKey={`b13.ruta.diaria.${employee.id}`}>
                 {daily.map((i, idx) => (
                   <div key={i.id} className="animate-rise-in" style={{ animationDelay: `${idx * 35}ms` }}>
                     <TaskRow item={i} employee={employee} onChange={reload} />
@@ -77,7 +78,7 @@ export default function CleaningToday({ anns = [], onOpenAnns }) {
             )}
 
             {weekly.length > 0 && (
-              <TaskGroup icon={Spray} title="Hoy además toca" done={weeklyDone} total={weekly.length} defaultOpen>
+              <TaskGroup icon={Spray} title="Hoy además toca" done={weeklyDone} total={weekly.length} defaultOpen persistKey={`b13.ruta.semanal.${employee.id}`}>
                 {weekly.map((i, idx) => (
                   <div key={i.id} className="animate-rise-in" style={{ animationDelay: `${idx * 35}ms` }}>
                     <TaskRow item={i} employee={employee} onChange={reload} />
@@ -90,11 +91,9 @@ export default function CleaningToday({ anns = [], onOpenAnns }) {
       )}
 
       {otherAdhoc.length > 0 && (
-        <CollapsibleSection icon={Activity} title="Tareas puntuales" right={<CountBadge tone="ink">{otherAdhoc.length}</CountBadge>} persistKey="b13.clean.puntuales">
-          <div className="space-y-2">
-            {otherAdhoc.map((t) => <AdHocCard key={t.id} task={t} employee={employee} onChange={reload} />)}
-          </div>
-        </CollapsibleSection>
+        <SectionCard icon={Activity} title="Tareas puntuales" right={<CountBadge tone="ink">{otherAdhoc.length}</CountBadge>} persistKey="b13.clean.puntuales">
+          {otherAdhoc.map((t) => <AdHocCard key={t.id} task={t} employee={employee} onChange={reload} flat />)}
+        </SectionCard>
       )}
 
       {/* Seguimiento de lo que reportó (limpieza solo reporta mantenimiento) */}

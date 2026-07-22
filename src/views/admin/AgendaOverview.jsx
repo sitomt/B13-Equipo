@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { listAllTemplates, listRecurring } from '../../lib/api'
 import { useData } from '../../lib/useData'
-import { Card, SectionTitle, Tag, CountBadge, SkeletonList, EmptyState } from '../../components/ui'
+import { Card, Tag, CountBadge, SkeletonList, EmptyState } from '../../components/ui'
 import { SegmentedControl } from '../../components/controls'
 import { recurrenceLabel, nextOccurrence } from '../../lib/date'
 import { haptic } from '../../lib/haptics'
@@ -52,7 +52,8 @@ export default function AgendaOverview({ onEdit }) {
         ) : (
           ['coach', 'cleaning'].map((role) => (
             <div key={role}>
-              <SectionTitle icon={Settings}>{ROLE_LABEL[role]}</SectionTitle>
+              {/* Cabecera de grupo discreta: las cards de sección son las protagonistas */}
+              <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wide text-ink/40">{ROLE_LABEL[role]}</p>
               <div className="space-y-4">
                 {SECTIONS.map((sec) => {
                   if (role === 'cleaning' && sec.key !== 'agenda') return null
@@ -91,7 +92,7 @@ export default function AgendaOverview({ onEdit }) {
           const plans = g.d.data || []
           return (
             <div key={g.target}>
-              <SectionTitle icon={g.icon}>{g.label}</SectionTitle>
+              <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wide text-ink/40">{g.label}</p>
               {g.d.loading ? (
                 <SkeletonList rows={2} />
               ) : plans.length === 0 ? (

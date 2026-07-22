@@ -7,10 +7,9 @@ import { useData } from '../../lib/useData'
 import { useSession } from '../../state/session'
 import { useToast } from '../../components/Toast'
 import { haptic } from '../../lib/haptics'
-import { Card, SectionTitle, Tag, Spinner, EmptyState } from '../../components/ui'
-import IncidenciaTypesEditor from '../../components/IncidenciaTypesEditor'
-import AreasEditor from '../../components/AreasEditor'
-import { Alert, Wrench, Check, Clock, User, Settings, Trash, GripVertical } from '../../components/icons'
+import { Card, Tag, Spinner, CountBadge } from '../../components/ui'
+import SectionCard from '../../components/SectionCard'
+import { Alert, Wrench, Check, Clock, User, Trash, GripVertical } from '../../components/icons'
 import { shortDate, dateTime, daysBetween, relativeTime } from '../../lib/date'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
@@ -46,15 +45,17 @@ function Step({ color, label, who, when, last }) {
   )
 }
 
-function IncidentCard({ inc, onStart, onResolve, onDelete, isMaint, dragHandle }) {
+function IncidentCard({ inc, onStart, onResolve, onDelete, isMaint, dragHandle, flat = false }) {
   const [open, setOpen] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
   const done = inc.status === 'done'
   const days = daysBetween(inc.created_at, done ? inc.resolved_at : null)
   const aging = !done && days >= 2
 
+  // `flat`: sin Card exterior, para vivir como fila del divide-y de un SectionCard.
+  const Wrap = flat ? 'div' : Card
   return (
-    <Card className="relative overflow-hidden">
+    <Wrap className={flat ? 'relative' : 'relative overflow-hidden'}>
       {dragHandle && (
         <button
           {...dragHandle.attributes}
@@ -136,7 +137,7 @@ function IncidentCard({ inc, onStart, onResolve, onDelete, isMaint, dragHandle }
           )}
         </div>
       )}
-    </Card>
+    </Wrap>
   )
 }
 
@@ -144,7 +145,7 @@ function SortableIncident({ inc, ...rest }) {
   const { setNodeRef, transform, transition, attributes, listeners, isDragging } = useSortable({ id: inc.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
   return (
-    <div ref={setNodeRef} style={style} className={isDragging ? 'relative z-20 opacity-80 shadow-float' : 'relative'}>
+    <div ref={setNodeRef} style={style} className={isDragging ? 'relative z-20 rounded-2xl bg-white opacity-90 shadow-float' : 'relative'}>
       <IncidentCard inc={inc} dragHandle={{ attributes, listeners }} {...rest} />
     </div>
   )
@@ -157,8 +158,6 @@ export default function AdminIncidents() {
   const maintenance = useData(listMaintenance, [], { interval: 20000 })
   const [source, setSource] = useState('incidencia')
   const [sf, setSf] = useState('open')
-  const [editTags, setEditTags] = useState(false)
-  const [editAreas, setEditAreas] = useState(false)
   const [items, setItems] = useState([])
 
   const isMaint = source === 'mantenimiento'
@@ -254,47 +253,32 @@ export default function AdminIncidents() {
         ))}
       </div>
 
-      <SectionTitle
+      {/* La gestión de áreas y etiquetas vive en Club → Gestión. */}
+      <SectionCard
         icon={isMaint ? Wrench : Alert}
-        right={
-          <div className="flex items-center gap-2">
-            <button onClick={() => setEditAreas(true)} className="flex min-h-[44px] items-center gap-1 rounded-full bg-ink/5 px-3.5 text-xs font-bold text-ink/60 transition-enter active:scale-95">
-              <Settings size={13} /> Áreas
-            </button>
-            {!isMaint && (
-              <button onClick={() => setEditTags(true)} className="flex min-h-[44px] items-center gap-1 rounded-full bg-ink/5 px-3.5 text-xs font-bold text-ink/60 transition-enter active:scale-95">
-                <Settings size={13} /> Etiquetas
-              </button>
-            )}
-          </div>
-        }
+        title={isMaint ? 'Partes de mantenimiento' : 'Incidencias internas'}
+        right={items.length > 0 ? <CountBadge tone="ink">{items.length}</CountBadge> : null}
+        empty={{ icon: isMaint ? Wrench : Alert, text: 'No hay registros en este filtro.' }}
       >
-        {isMaint ? 'Partes de mantenimiento' : 'Incidencias internas'}
-      </SectionTitle>
-
-      {active.loading ? (
-        <div className="flex justify-center py-10"><Spinner className="h-7 w-7" /></div>
-      ) : items.length === 0 ? (
-        <EmptyState icon={isMaint ? Wrench : Alert} title="Nada por aquí" subtitle="No hay registros en este filtro." />
-      ) : (
-        <>
-          <p className="-mt-1 flex items-center gap-1.5 px-1 text-xs text-ink/40">
-            <GripVertical size={13} /> Arrastra para ordenar{isMaint ? ' — el técnico lo verá en este orden' : ''}
-          </p>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-3">
+        {active.loading ? (
+          <div className="flex justify-center py-8"><Spinner className="h-6 w-6" /></div>
+        ) : items.length > 0 ? (
+          <>
+            <p className="flex items-center gap-1.5 px-4 py-2 text-xs text-ink/40">
+              <GripVertical size={13} /> Arrastra para ordenar{isMaint ? ' — el técnico lo verá en este orden' : ''}
+            </p>
+            {/* DndContext/SortableContext no crean nodos DOM: las filas quedan
+                como hijas directas del divide-y del SectionCard. */}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+              <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                 {items.map((i) => (
-                  <SortableIncident key={i.id} inc={i} onStart={onStart} onResolve={onResolve} onDelete={onDelete} isMaint={isMaint} />
+                  <SortableIncident key={i.id} inc={i} onStart={onStart} onResolve={onResolve} onDelete={onDelete} isMaint={isMaint} flat />
                 ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        </>
-      )}
-
-      <IncidenciaTypesEditor open={editTags} onClose={() => setEditTags(false)} />
-      <AreasEditor open={editAreas} onClose={() => setEditAreas(false)} />
+              </SortableContext>
+            </DndContext>
+          </>
+        ) : null}
+      </SectionCard>
     </div>
   )
 }

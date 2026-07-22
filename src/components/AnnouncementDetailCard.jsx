@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { haptic } from '../lib/haptics'
 import { daysBetween, relativeTime, shortDate, todayMadrid } from '../lib/date'
 import { Avatar } from './ui'
+import CommentThread from './CommentThread'
 import { Megaphone, User, Check, ChevronDown } from './icons'
 
 const ROLE_ES = { coach: 'Coach', cleaning: 'Limpieza', maintenance: 'Mantenimiento', admin: 'Dirección' }
@@ -24,7 +25,7 @@ const firstName = (name) => (name || '').split(' ')[0]
 // destacado. El marcado como leído NO ocurre aquí: lo hace useAnnouncements
 // al abrir la pestaña.
 // ============================================================================
-export default function AnnouncementDetailCard({ a, stat, past = false }) {
+export default function AnnouncementDetailCard({ a, stat, past = false, comments = [], employee, empById, onSend }) {
   const [readsOpen, setReadsOpen] = useState(false)
   const fromPeer = a.created_by_role && a.created_by_role !== 'admin'
   const high = a.priority === 'high'
@@ -106,6 +107,16 @@ export default function AnnouncementDetailCard({ a, stat, past = false }) {
           )}
         </div>
       )}
+
+      {/* Conversación bajo el aviso (en anteriores solo lectura, sin input) */}
+      <CommentThread
+        comments={comments}
+        employee={employee}
+        empById={empById}
+        onSend={onSend ? (body) => onSend(a, body) : undefined}
+        readOnly={past || !onSend}
+        tone={fromPeer ? 'sand' : 'white'}
+      />
     </div>
   )
 }

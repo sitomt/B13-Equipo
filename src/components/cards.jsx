@@ -206,8 +206,9 @@ export function AnnouncementCard({ a }) {
   )
 }
 
-// Tarea puntual / aviso urgente (limpieza)
-export function AdHocCard({ task, employee, onChange }) {
+// Tarea puntual / aviso urgente (limpieza). `flat` la renderiza sin estilos de
+// card exterior (para usarla como fila dentro de un SectionCard).
+export function AdHocCard({ task, employee, onChange, flat = false }) {
   const [busy, setBusy] = useState(false)
   const [optimisticDone, setOptimisticDone] = useState(false)
   const toast = useToast()
@@ -233,8 +234,8 @@ export function AdHocCard({ task, employee, onChange }) {
 
   return (
     <div
-      className={`overflow-hidden rounded-xl2 shadow-card ${
-        done ? 'bg-white opacity-60' : urgent ? 'bg-terracotta text-white' : 'bg-white'
+      className={`overflow-hidden ${flat ? '' : 'rounded-xl2 shadow-card'} ${
+        done ? `opacity-60 ${flat ? '' : 'bg-white'}` : urgent ? 'bg-terracotta text-white' : flat ? '' : 'bg-white'
       }`}
     >
       <div className="flex items-start gap-3 p-4">

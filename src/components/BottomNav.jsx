@@ -28,7 +28,7 @@ export default function BottomNav({ tabs, active, onChange, actions, actionsTitl
                   onClick={() => { if (!on) haptic('tap'); onChange(t.key) }}
                   aria-current={on ? 'page' : undefined}
                   aria-label={badge ? `${t.label}, ${t.badge} sin leer` : undefined}
-                  className={`relative flex min-h-[50px] min-w-[56px] flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1 text-[10px] font-bold transition-enter ${
+                  className={`relative flex min-h-[50px] min-w-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1 text-[10px] font-bold transition-enter ${
                     on ? 'bg-white/[0.07] text-bronze-glow' : 'text-white/40'
                   }`}
                 >

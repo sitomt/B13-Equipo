@@ -3,21 +3,24 @@ import { listRecurring, deleteRecurring, updateRecurring, runDueRecurring } from
 import { useData } from '../../lib/useData'
 import { useSession } from '../../state/session'
 import { useToast } from '../../components/Toast'
-import { Card, SectionTitle, Tag, Spinner } from '../../components/ui'
+import { Card, Tag, Spinner } from '../../components/ui'
+import SectionCard from '../../components/SectionCard'
 import RecurringTaskSheet from '../../components/RecurringTaskSheet'
 import { Wrench, Alert, Plus, Trash, Refresh } from '../../components/icons'
 import { recurrenceLabel, nextOccurrence } from '../../lib/date'
 
 const GROUPS = [
-  { target: 'mantenimiento', label: 'Técnico', icon: Wrench },
-  { target: 'incidencia', label: 'Equipo', icon: Alert },
+  { target: 'mantenimiento', label: 'Técnico', icon: Wrench, persistKey: 'b13.admin.prev.tecnico' },
+  { target: 'incidencia', label: 'Equipo', icon: Alert, persistKey: 'b13.admin.prev.equipo' },
 ]
 
-function PlanCard({ p, onEdit, onToggle, onDelete }) {
+function PlanCard({ p, onEdit, onToggle, onDelete, flat = false }) {
   const [confirmDel, setConfirmDel] = useState(false)
   const next = nextOccurrence(p.months, p.day_of_month, p.start_on)
+  // `flat`: sin Card exterior, para vivir como fila del divide-y de un SectionCard.
+  const Wrap = flat ? 'div' : Card
   return (
-    <Card className="overflow-hidden">
+    <Wrap className={flat ? '' : 'overflow-hidden'}>
       <button onClick={() => onEdit(p)} className="w-full p-4 text-left active:bg-ink/[0.03]">
         <div className="mb-1 flex flex-wrap items-center gap-2">
           {p.priority === 'urgent' && <Tag status="urgent" />}
@@ -47,7 +50,7 @@ function PlanCard({ p, onEdit, onToggle, onDelete }) {
           </button>
         )}
       </div>
-    </Card>
+    </Wrap>
   )
 }
 
@@ -95,30 +98,27 @@ export default function AdminRecurring() {
         const d = dataFor(g.target)
         const list = d.data || []
         return (
-          <div key={g.target}>
-            <SectionTitle
-              icon={Icon}
-              right={
-                <button onClick={() => setSheet({ target: g.target, editing: null })}
-                  className="flex min-h-[44px] items-center gap-1 rounded-full bg-ink px-3.5 text-xs font-bold text-white active:scale-95">
-                  <Plus size={14} /> Añadir
-                </button>
-              }
-            >
-              {g.label}
-            </SectionTitle>
+          <SectionCard
+            key={g.target}
+            icon={Icon}
+            title={g.label}
+            persistKey={g.persistKey}
+            action={
+              <button onClick={() => setSheet({ target: g.target, editing: null })}
+                className="flex min-h-[44px] shrink-0 items-center gap-1 rounded-full bg-ink px-3.5 text-xs font-bold text-white active:scale-95">
+                <Plus size={14} /> Añadir
+              </button>
+            }
+            empty={{ icon: Icon, text: 'Sin tareas preventivas todavía.' }}
+          >
             {d.loading ? (
               <div className="flex justify-center py-6"><Spinner className="h-6 w-6" /></div>
-            ) : list.length === 0 ? (
-              <p className="px-1 text-sm text-ink/35">Sin tareas preventivas todavía.</p>
-            ) : (
-              <div className="space-y-3">
-                {list.map((p) => (
-                  <PlanCard key={p.id} p={p} onEdit={(x) => setSheet({ target: x.target, editing: x })} onToggle={onToggle} onDelete={onDelete} />
-                ))}
-              </div>
-            )}
-          </div>
+            ) : list.length > 0 ? (
+              list.map((p) => (
+                <PlanCard key={p.id} p={p} onEdit={(x) => setSheet({ target: x.target, editing: x })} onToggle={onToggle} onDelete={onDelete} flat />
+              ))
+            ) : null}
+          </SectionCard>
         )
       })}
 

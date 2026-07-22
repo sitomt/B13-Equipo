@@ -765,6 +765,53 @@ export async function listAnnouncementReads() {
   return data
 }
 
+// ---------- CONVERSACIÓN BAJO CADA AVISO ----------
+// Comentarios de un conjunto de avisos, en orden cronológico.
+export async function listAnnouncementComments(announcementIds) {
+  if (!announcementIds || announcementIds.length === 0) return []
+  const { data, error } = await supabase
+    .from('announcement_comments')
+    .select('*')
+    .in('announcement_id', announcementIds)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data
+}
+
+export async function createAnnouncementComment(announcementId, employee, body) {
+  const { data, error } = await supabase
+    .from('announcement_comments')
+    .insert({
+      announcement_id: announcementId,
+      employee_id: employee.id,
+      employee_name: employee.name,
+      employee_role: employee.role,
+      body,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// Marca temporal "he visto la conversación" por empleado (una fila por persona).
+export async function getCommentSeen(employeeId) {
+  const { data, error } = await supabase
+    .from('comment_seen')
+    .select('seen_at')
+    .eq('employee_id', employeeId)
+    .maybeSingle()
+  if (error) throw error
+  return data?.seen_at || null
+}
+
+export async function setCommentSeen(employeeId) {
+  const { error } = await supabase
+    .from('comment_seen')
+    .upsert({ employee_id: employeeId, seen_at: new Date().toISOString() })
+  if (error) throw error
+}
+
 export async function savePushSubscription(employeeId, { endpoint, p256dh, auth }) {
   const { error } = await supabase.from('push_subscriptions').upsert(
     { employee_id: employeeId, endpoint, p256dh, auth, user_agent: navigator.userAgent },
@@ -790,6 +837,71 @@ async function notifyAnnouncement(a) {
 
 export async function updateAnnouncement(id, patch) {
   const { error } = await supabase.from('announcements').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+// ---------- CLUB / UTILIDADES (documentos editables por el admin) ----------
+// Categorías = tiles del launcher del Club. `icon` es un nombre de icono que el
+// cliente mapea a un componente. Los docs guardan `visible_roles`: vacío = todos.
+export async function listUtilityCategories() {
+  const { data, error } = await supabase
+    .from('utility_categories')
+    .select('*')
+    .order('position')
+  if (error) throw error
+  return data
+}
+
+// Todos los docs (el filtrado por rol se hace en cliente para que el admin lo vea todo).
+export async function listUtilityDocs() {
+  const { data, error } = await supabase
+    .from('utility_docs')
+    .select('*')
+    .order('position')
+  if (error) throw error
+  return data
+}
+
+export async function createUtilityCategory({ name, icon = 'Book', position = 99 }) {
+  const { data, error } = await supabase
+    .from('utility_categories')
+    .insert({ name, icon, position })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateUtilityCategory(id, patch) {
+  const { error } = await supabase.from('utility_categories').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteUtilityCategory(id) {
+  const { error } = await supabase.from('utility_categories').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function createUtilityDoc({ category_id, title, body = '', visible_roles = [], position = 99 }) {
+  const { data, error } = await supabase
+    .from('utility_docs')
+    .insert({ category_id, title, body, visible_roles, position })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateUtilityDoc(id, patch) {
+  const { error } = await supabase
+    .from('utility_docs')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteUtilityDoc(id) {
+  const { error } = await supabase.from('utility_docs').delete().eq('id', id)
   if (error) throw error
 }
 

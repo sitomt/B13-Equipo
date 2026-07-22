@@ -2,24 +2,21 @@ import { useState, useEffect } from 'react'
 import Sheet from './Sheet'
 import PinPad from './PinPad'
 import PhotoPicker from './PhotoPicker'
-import UtilitiesOverlay from './UtilitiesOverlay'
-import TeamOverlay from '../views/admin/TeamOverlay'
 import { Avatar, ConfirmSheet } from './ui'
 import { uploadPhoto, updateEmployee, changePin } from '../lib/api'
 import { enablePush, notificationsEnabled, pushSupported } from '../lib/push'
 import { useToast } from './Toast'
 import { useSession } from '../state/session'
-import { Key, Chevron, Camera, Bell, Check, Book, User, LogOut } from './icons'
+import { Key, Chevron, Camera, Bell, Check, Book, LogOut } from './icons'
 
-// Perfil del empleado: foto, PIN, notificaciones, tutorial, utilidades,
-// equipo (solo admin) y cerrar sesión. Un único Sheet con modos para no anidar hojas.
+// Perfil del empleado: foto, PIN, notificaciones, tutorial y cerrar sesión.
+// Solo lo personal: los documentos y la gestión del club viven en la pestaña
+// Club. Un único Sheet con modos para no anidar hojas.
 export default function AccountSheet({ open, onClose, employee }) {
   const toast = useToast()
   const { login, logout } = useSession()
   const [mode, setMode] = useState('menu') // 'menu' | 'photo' | 'pin'
   const [busy, setBusy] = useState(false)
-  const [utils, setUtils] = useState(false)         // overlay Utilidades
-  const [team, setTeam] = useState(false)           // overlay Equipo (admin)
   const [confirmOut, setConfirmOut] = useState(false)
 
   // --- notificaciones push ---
@@ -88,8 +85,6 @@ export default function AccountSheet({ open, onClose, employee }) {
 
   return (
     <>
-      {utils && <UtilitiesOverlay onClose={() => setUtils(false)} />}
-      {team && <TeamOverlay onClose={() => setTeam(false)} />}
       <ConfirmSheet
         open={confirmOut}
         onClose={() => setConfirmOut(false)}
@@ -143,32 +138,6 @@ export default function AccountSheet({ open, onClose, employee }) {
                 <span className="block text-xs text-ink/45">{notifOn ? 'Recibirás los avisos en este dispositivo' : 'Recibe los avisos como aviso en el móvil'}</span>
               </span>
               {notifOn ? <Check size={18} className="text-sage" /> : <Chevron size={18} className="text-ink/25" />}
-            </button>
-          )}
-
-          <button
-            onClick={() => { onClose(); setUtils(true) }}
-            className="mb-3 flex w-full items-center gap-3 rounded-2xl bg-ink/[0.04] p-4 text-left transition active:scale-[0.99]"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-bronze/12 text-bronze-dark"><Book size={20} /></span>
-            <span className="flex-1">
-              <span className="block font-semibold text-ink">Utilidades y manuales</span>
-              <span className="block text-xs text-ink/45">Guías y documentos del club</span>
-            </span>
-            <Chevron size={18} className="text-ink/25" />
-          </button>
-
-          {employee?.role === 'admin' && (
-            <button
-              onClick={() => { onClose(); setTeam(true) }}
-              className="mb-3 flex w-full items-center gap-3 rounded-2xl bg-ink/[0.04] p-4 text-left transition active:scale-[0.99]"
-            >
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-bronze/12 text-bronze-dark"><User size={20} /></span>
-              <span className="flex-1">
-                <span className="block font-semibold text-ink">Equipo</span>
-                <span className="block text-xs text-ink/45">Perfiles de coaches, limpieza y mantenimiento</span>
-              </span>
-              <Chevron size={18} className="text-ink/25" />
             </button>
           )}
 

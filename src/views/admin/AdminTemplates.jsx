@@ -11,10 +11,10 @@ import { CSS } from '@dnd-kit/utilities'
 import { listAllTemplates, createTemplate, updateTemplate, deleteTemplate, reorderTemplates } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { useToast } from '../../components/Toast'
-import { Card, SectionTitle, Tag } from '../../components/ui'
+import { Card, Tag } from '../../components/ui'
 import Sheet from '../../components/Sheet'
 import AdminRecurring from './AdminRecurring'
-import { Plus, Trash, Settings, Sunrise, Moon, Activity, Refresh, Clock, ChevronDown, GripVertical } from '../../components/icons'
+import { Plus, Trash, Sunrise, Moon, Activity, Refresh, Clock, ChevronDown, GripVertical } from '../../components/icons'
 
 const WEEKDAYS = [
   { v: 1, l: 'L' }, { v: 2, l: 'M' }, { v: 3, l: 'X' }, { v: 4, l: 'J' },
@@ -180,7 +180,8 @@ export default function AdminTemplates() {
       {mode === 'preventivas' ? <AdminRecurring /> : (<>
       {['coach', 'cleaning'].map((role) => (
         <div key={role}>
-          <SectionTitle icon={Settings}>{ROLE_LABEL[role]}</SectionTitle>
+          {/* Cabecera de grupo discreta: las cards de sección son las protagonistas */}
+          <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wide text-ink/40">{ROLE_LABEL[role]}</p>
           <div className="space-y-4">
             {SECTIONS.map((sec) => {
               if (role === 'cleaning' && sec.key !== 'agenda') return null

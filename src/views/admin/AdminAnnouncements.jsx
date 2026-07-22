@@ -1,17 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { listAllAnnouncements, createAnnouncement, updateAnnouncement, listAnnouncementReads, listEmployees } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { useSession } from '../../state/session'
 import { useToast } from '../../components/Toast'
-import { Card, SectionTitle, EmptyState } from '../../components/ui'
+import { Card, EmptyState } from '../../components/ui'
+import CommentThread from '../../components/CommentThread'
 import { Megaphone, Check, ChevronDown } from '../../components/icons'
 import { todayMadrid } from '../../lib/date'
 
 // ============================================================================
-// Avisos (solo VISUALIZACIÓN): activos por urgencia + acuse de lectura.
-// Crear avisos vive en "+ → Nuevo aviso". El histórico, tras "Ver histórico".
+// Avisos: activos por urgencia + acuse de lectura + conversación bajo cada
+// aviso (`store` = useAnnouncements('admin') creado en AdminView, compartido
+// con el badge del navbar). Crear avisos vive en "+ → Nuevo aviso".
 // ============================================================================
-export default function AdminAnnouncements() {
+export default function AdminAnnouncements({ store }) {
   const { employee } = useSession()
   const toast = useToast()
   const ann = useData(listAllAnnouncements, [])
@@ -19,6 +21,10 @@ export default function AdminAnnouncements() {
   const staff = useData(listEmployees, [])
   const [showPast, setShowPast] = useState(false)
   const [busy, setBusy] = useState(false)
+
+  // Al abrir la vista, la conversación queda como vista (badge del navbar).
+  const markCommentsSeen = store?.markCommentsSeen
+  useEffect(() => { markCommentsSeen?.() }, [markCommentsSeen])
 
   // Para cada aviso: cuántos de su público objetivo lo han leído.
   const readsByAnn = new Map()
@@ -64,7 +70,8 @@ export default function AdminAnnouncements() {
   return (
     <div className="space-y-5 pb-24">
       <div>
-        <SectionTitle icon={Megaphone}>Avisos activos</SectionTitle>
+        {/* Cabecera de grupo discreta: las cards de aviso son las protagonistas */}
+        <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wide text-ink/40">Avisos activos</p>
         {activeAnn.length === 0 ? (
           <EmptyState icon={Megaphone} title="No hay avisos activos" subtitle='Publica uno desde "+" → Nuevo aviso.' />
         ) : (
@@ -111,6 +118,17 @@ export default function AdminAnnouncements() {
                       )}
                     </div>
                   )}
+                  {/* Conversación bajo el aviso */}
+                  {store && (
+                    <div className="-mx-3.5 -mb-3.5 mt-2.5">
+                      <CommentThread
+                        comments={store.commentsFor(a)}
+                        employee={employee}
+                        empById={store.empById}
+                        onSend={(body) => store.addComment(a, body)}
+                      />
+                    </div>
+                  )}
                 </Card>
               )
             })}
@@ -134,6 +152,12 @@ export default function AdminAnnouncements() {
                 <Card key={a.id} className="p-3">
                   <p className="font-semibold text-ink/70">{a.title}</p>
                   <p className="text-xs text-ink/35">{a.target_roles.join(', ')} · finalizó {a.ends_on}</p>
+                  {/* Conversación (solo lectura) si la hubo */}
+                  {store && (
+                    <div className="-mx-3 -mb-3 mt-2">
+                      <CommentThread comments={store.commentsFor(a)} employee={employee} empById={store.empById} readOnly />
+                    </div>
+                  )}
                 </Card>
               ))}
             </div>

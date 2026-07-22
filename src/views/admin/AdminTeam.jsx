@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Sheet from '../../components/Sheet'
-import { Card, SectionTitle, CollapsibleSection, CountBadge, Spinner, ConfirmSheet, EmptyState, Avatar } from '../../components/ui'
+import { CountBadge, Spinner, ConfirmSheet, EmptyState, Avatar } from '../../components/ui'
+import SectionCard from '../../components/SectionCard'
 import { listAllEmployees, createEmployee, updateEmployee, deactivateEmployee, clearPin, reconcileOpenShifts } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { useSession } from '../../state/session'
@@ -213,16 +214,13 @@ export default function AdminTeam() {
 
   return (
     <div className="space-y-5 pb-24">
-      <SectionTitle
-        icon={User}
-        right={
-          <button onClick={openNew} className="flex min-h-[44px] items-center gap-1 rounded-full bg-ink px-3.5 text-xs font-bold text-white transition-enter active:scale-95">
-            <Plus size={13} /> Añadir
-          </button>
-        }
-      >
-        Equipo · perfiles
-      </SectionTitle>
+      {/* Cabecera de grupo discreta: los SectionCard por rol son los protagonistas */}
+      <div className="flex items-center justify-between px-1">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-ink/40">Equipo · perfiles</p>
+        <button onClick={openNew} className="flex min-h-[44px] items-center gap-1 rounded-full bg-ink px-3.5 text-xs font-bold text-white transition-enter active:scale-95">
+          <Plus size={13} /> Añadir
+        </button>
+      </div>
 
       {/* Geocerca del gimnasio: punto y radio donde el equipo puede fichar */}
       <button
@@ -246,9 +244,8 @@ export default function AdminTeam() {
           if (!list.length) return null
           const Icon = ROLE_META[r].icon
           return (
-            <CollapsibleSection key={r} icon={Icon} title={ROLE_META[r].label} right={<CountBadge tone="ink">{list.length}</CountBadge>} persistKey={`b13.team.${r}`}>
-              <Card className="divide-y divide-ink/[0.06]">
-                {list.map((e) => (
+            <SectionCard key={r} icon={Icon} title={ROLE_META[r].label} right={<CountBadge tone="ink">{list.length}</CountBadge>} persistKey={`b13.team.${r}`}>
+              {list.map((e) => (
                   <div key={e.id} className="flex items-center gap-3 p-3">
                     <button onClick={() => openEdit(e)} className="flex min-w-0 flex-1 items-center gap-3 text-left active:opacity-70">
                       <Avatar emp={e} />
@@ -274,17 +271,15 @@ export default function AdminTeam() {
                       </button>
                     )}
                   </div>
-                ))}
-              </Card>
-            </CollapsibleSection>
+              ))}
+            </SectionCard>
           )
         })
       )}
 
       {inactive.length > 0 && (
-        <CollapsibleSection icon={Power} title="Desactivados" right={<CountBadge tone="ink">{inactive.length}</CountBadge>} persistKey="b13.team.inactivos" defaultOpen={false}>
-          <Card className="divide-y divide-ink/[0.06]">
-            {inactive.map((e) => (
+        <SectionCard icon={Power} title="Desactivados" right={<CountBadge tone="ink">{inactive.length}</CountBadge>} persistKey="b13.team.inactivos" defaultOpen={false}>
+          {inactive.map((e) => (
               <div key={e.id} className="flex items-center gap-3 p-3 opacity-70">
                 <Avatar emp={e} size={36} />
                 <div className="min-w-0 flex-1">
@@ -298,9 +293,8 @@ export default function AdminTeam() {
                   <Power size={16} /> Reactivar
                 </button>
               </div>
-            ))}
-          </Card>
-        </CollapsibleSection>
+          ))}
+        </SectionCard>
       )}
 
       <EmployeeEditor

@@ -95,6 +95,7 @@ export default function CoachToday({ anns = [], onOpenAnns }) {
                 done={sections.apertura.filter((i) => !i.recurring && i.done).length}
                 total={sections.apertura.filter((i) => !i.recurring).length}
                 defaultOpen={sections.apertura.some((i) => !i.done)}
+                persistKey={`b13.tu-dia.apertura.${employee.id}`}
                 action={markAllBtn(aperturaPending, 'Apertura')}
               >
                 {sections.apertura.map((i, idx) => (
@@ -106,7 +107,7 @@ export default function CoachToday({ anns = [], onOpenAnns }) {
             )}
 
             {sections.agenda.length > 0 && (
-              <TaskGroup icon={Activity} title="Tareas de hoy" done={agendaDone} total={agendaTotal} defaultOpen>
+              <TaskGroup icon={Activity} title="Tareas de hoy" done={agendaDone} total={agendaTotal} defaultOpen persistKey={`b13.tu-dia.agenda.${employee.id}`}>
                 {sections.agenda.map((i, idx) => (
                   <div key={i.id} className="animate-rise-in" style={{ animationDelay: `${idx * 35}ms` }}>
                     <TaskRow item={i} employee={employee} onChange={reload} />
@@ -122,6 +123,7 @@ export default function CoachToday({ anns = [], onOpenAnns }) {
                 done={sections.cierre.filter((i) => !i.recurring && i.done).length}
                 total={sections.cierre.filter((i) => !i.recurring).length}
                 defaultOpen={hourMadrid() >= 17}
+                persistKey={`b13.tu-dia.cierre.${employee.id}`}
                 action={markAllBtn(cierrePending, 'Cierre')}
               >
                 {sections.cierre.map((i, idx) => (

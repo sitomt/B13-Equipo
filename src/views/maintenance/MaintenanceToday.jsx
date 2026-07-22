@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Card, CollapsibleSection, Tag, CountBadge, Skeleton, EmptyState } from '../../components/ui'
+import { Card, Tag, CountBadge, Skeleton, EmptyState } from '../../components/ui'
+import SectionCard from '../../components/SectionCard'
 import Sheet from '../../components/Sheet'
 import { Chip, Button } from '../../components/controls'
 import { listMaintenance, updateMaintenance, listAreas } from '../../lib/api'
@@ -11,11 +12,13 @@ import { BirthdayNotice } from '../../components/Birthday'
 import { Wrench, Alert, Check, Clock, User, Pencil, Search } from '../../components/icons'
 import { relativeTime } from '../../lib/date'
 
-function IncidentCard({ inc, onStart, onResolve, onNote }) {
+// `flat` la renderiza sin card exterior, para usarla como fila de un SectionCard.
+function IncidentCard({ inc, onStart, onResolve, onNote, flat = false }) {
   const urgent = inc.priority === 'urgent'
   const done = inc.status === 'done'
+  const Wrap = flat ? 'div' : Card
   return (
-    <Card className={`overflow-hidden ${done ? 'opacity-70' : ''}`}>
+    <Wrap className={`overflow-hidden ${done ? 'opacity-70' : ''}`}>
       <div className="p-4">
         <div className="mb-1 flex flex-wrap items-center gap-2">
           <Tag status={inc.status} />
@@ -57,7 +60,7 @@ function IncidentCard({ inc, onStart, onResolve, onNote }) {
           </button>
         </div>
       )}
-    </Card>
+    </Wrap>
   )
 }
 
@@ -182,40 +185,34 @@ export default function MaintenanceToday({ refresh = 0, anns = [], onOpenAnns })
       ) : (
         <>
           {pending.length > 0 && (
-            <CollapsibleSection icon={Alert} title="Pendientes" right={<CountBadge tone="terracotta">{pending.length}</CountBadge>} persistKey="b13.mant.pending">
-              <div className="space-y-3">
-                {pending.map((i, idx) => (
-                  <div key={i.id} className="animate-rise-in" style={{ animationDelay: `${idx * 35}ms` }}>
-                    <IncidentCard inc={i} onStart={start} onResolve={openResolve} onNote={openNote} />
-                  </div>
-                ))}
-              </div>
-            </CollapsibleSection>
+            <SectionCard icon={Alert} title="Pendientes" right={<CountBadge tone="terracotta">{pending.length}</CountBadge>} persistKey="b13.mant.pending">
+              {pending.map((i, idx) => (
+                <div key={i.id} className="animate-rise-in" style={{ animationDelay: `${idx * 35}ms` }}>
+                  <IncidentCard inc={i} onStart={start} onResolve={openResolve} onNote={openNote} flat />
+                </div>
+              ))}
+            </SectionCard>
           )}
           {inProgress.length > 0 && (
-            <CollapsibleSection icon={Clock} title="En curso" right={<CountBadge tone="ochre">{inProgress.length}</CountBadge>} persistKey="b13.mant.progress">
-              <div className="space-y-3">
-                {inProgress.map((i, idx) => (
-                  <div key={i.id} className="animate-rise-in" style={{ animationDelay: `${idx * 35}ms` }}>
-                    <IncidentCard inc={i} onStart={start} onResolve={openResolve} onNote={openNote} />
-                  </div>
-                ))}
-              </div>
-            </CollapsibleSection>
+            <SectionCard icon={Clock} title="En curso" right={<CountBadge tone="ochre">{inProgress.length}</CountBadge>} persistKey="b13.mant.progress">
+              {inProgress.map((i, idx) => (
+                <div key={i.id} className="animate-rise-in" style={{ animationDelay: `${idx * 35}ms` }}>
+                  <IncidentCard inc={i} onStart={start} onResolve={openResolve} onNote={openNote} flat />
+                </div>
+              ))}
+            </SectionCard>
           )}
           {done.length > 0 && (
-            <CollapsibleSection icon={Check} title="Resueltas" right={<CountBadge tone="sage">{done.length}</CountBadge>} persistKey="b13.mant.done" defaultOpen={false}>
-              <div className="mb-3 flex gap-2">
+            <SectionCard icon={Check} title="Resueltas" right={<CountBadge tone="sage">{done.length}</CountBadge>} persistKey="b13.mant.done" defaultOpen={false}>
+              <div className="flex gap-2 p-3">
                 {[{ d: 7, l: '7 días' }, { d: 30, l: '30 días' }, { d: 0, l: 'Todas' }].map((o) => (
                   <Chip key={o.d} selected={donePeriod === o.d} onClick={() => setDonePeriod(o.d)} className="flex-1">
                     {o.l}
                   </Chip>
                 ))}
               </div>
-              <div className="space-y-3">
-                {done.map((i) => <IncidentCard key={i.id} inc={i} onStart={start} onResolve={openResolve} onNote={openNote} />)}
-              </div>
-            </CollapsibleSection>
+              {done.map((i) => <IncidentCard key={i.id} inc={i} onStart={start} onResolve={openResolve} onNote={openNote} flat />)}
+            </SectionCard>
           )}
           {!list.length && <EmptyState icon={Wrench} title="Todo en orden" subtitle="No hay incidencias reportadas." />}
         </>

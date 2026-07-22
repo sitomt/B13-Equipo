@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import AnnouncementDetailCard from '../components/AnnouncementDetailCard'
-import { CollapsibleSection, CountBadge, SkeletonList, EmptyState } from '../components/ui'
+import { CountBadge, SkeletonList, EmptyState } from '../components/ui'
+import SectionCard from '../components/SectionCard'
 import { Megaphone, Clock } from '../components/icons'
 
 // ============================================================================
@@ -10,13 +11,13 @@ import { Megaphone, Clock } from '../components/icons'
 // badge del navbar comparta datos con esta pantalla).
 // ============================================================================
 export default function AnnouncementsScreen({ store, employee }) {
-  const { activos, anteriores, statFor, markActiveRead, loading } = store
+  const { activos, anteriores, statFor, markActiveRead, loading, commentsFor, addComment, markCommentsSeen, empById } = store
 
-  // Al abrir la pestaña se marcan como leídos los vigentes pendientes:
-  // el badge del navbar desaparece en vivo.
+  // Al abrir la pestaña se marcan como leídos los vigentes pendientes y la
+  // conversación como vista: el badge del navbar desaparece en vivo.
   useEffect(() => {
-    if (!loading) markActiveRead()
-  }, [loading, markActiveRead])
+    if (!loading) { markActiveRead(); markCommentsSeen() }
+  }, [loading, markActiveRead, markCommentsSeen])
 
   if (loading) return <SkeletonList rows={3} />
 
@@ -28,26 +29,37 @@ export default function AnnouncementsScreen({ store, employee }) {
         <div className="space-y-3">
           {activos.map((a, i) => (
             <div key={a.id} className="animate-rise-in" style={{ animationDelay: `${i * 35}ms` }}>
-              <AnnouncementDetailCard a={a} stat={statFor(a)} />
+              <AnnouncementDetailCard
+                a={a}
+                stat={statFor(a)}
+                comments={commentsFor(a)}
+                employee={employee}
+                empById={empById}
+                onSend={addComment}
+              />
             </div>
           ))}
         </div>
       )}
 
       {anteriores.length > 0 && (
-        <CollapsibleSection
+        <SectionCard
           icon={Clock}
           title="Anteriores"
           right={<CountBadge tone="ink">{anteriores.length}</CountBadge>}
           defaultOpen={false}
           persistKey={`b13.anns.past.${employee.id}`}
         >
-          <div className="space-y-3">
+          {/* Los avisos conservan su identidad de card sobre fondo sand */}
+          <div className="space-y-3 bg-sand-50 p-3">
             {anteriores.map((a) => (
-              <AnnouncementDetailCard key={a.id} a={a} stat={statFor(a)} past />
+              <AnnouncementDetailCard
+                key={a.id} a={a} stat={statFor(a)} past
+                comments={commentsFor(a)} employee={employee} empById={empById}
+              />
             ))}
           </div>
-        </CollapsibleSection>
+        </SectionCard>
       )}
     </div>
   )

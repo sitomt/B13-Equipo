@@ -27,6 +27,7 @@ export const Utensils = (p) => (
 export const Power = (p) => <S {...p}><path d="M12 3v9" /><path d="M5.6 7a8 8 0 1 0 12.8 0" /></S>
 export const LogOut = (p) => <S {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5M21 12H9" /></S>
 export const Plus = (p) => <S {...p}><path d="M12 5v14M5 12h14" /></S>
+export const Send = (p) => <S {...p}><path d="m22 2-7 20-4-9-9-4 20-7Z" /><path d="M22 2 11 13" /></S>
 export const Chat = (p) => <S {...p}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" /></S>
 export const X = (p) => <S {...p}><path d="M18 6 6 18M6 6l12 12" /></S>
 export const Alert = (p) => (
