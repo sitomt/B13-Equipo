@@ -3,9 +3,11 @@ import { listAllAnnouncements, createAnnouncement, updateAnnouncement, listAnnou
 import { useData } from '../../lib/useData'
 import { useSession } from '../../state/session'
 import { useToast } from '../../components/Toast'
-import { Card, EmptyState } from '../../components/ui'
+import { Card, ConfirmSheet, EmptyState } from '../../components/ui'
+import { Button } from '../../components/controls'
+import Sheet from '../../components/Sheet'
 import CommentThread from '../../components/CommentThread'
-import { Megaphone, Check, ChevronDown } from '../../components/icons'
+import { Megaphone, Check, ChevronDown, More, Archive } from '../../components/icons'
 import { todayMadrid } from '../../lib/date'
 
 // ============================================================================
@@ -22,6 +24,8 @@ export default function AdminAnnouncements({ store }) {
   const [showPast, setShowPast] = useState(false)
   const [busy, setBusy] = useState(false)
   const [openIds, setOpenIds] = useState(() => new Set())
+  const [actionsFor, setActionsFor] = useState(null)
+  const [archiveTarget, setArchiveTarget] = useState(null)
 
   // La conversación se considera vista al entrar, pero cada aviso se marca
   // como leído únicamente cuando se despliega.
@@ -62,6 +66,7 @@ export default function AdminAnnouncements({ store }) {
   const pastAnn = (ann.data || []).filter((a) => !a.active || a.ends_on < today)
 
   async function deactivate(a) {
+    if (!a) return
     try { await updateAnnouncement(a.id, { active: false }); await ann.reload(true); toast('Aviso archivado') }
     catch { toast('Error', 'error') }
   }
@@ -113,13 +118,22 @@ export default function AdminAnnouncements({ store }) {
                         {a.target_roles.join(', ')} · hasta {a.ends_on}
                         </span>
                       </span>
-                      <ChevronDown
-                        size={17}
-                        className={`mt-1 shrink-0 text-ink/30 transition-transform ${open ? 'rotate-180' : ''}`}
-                      />
+                      <span className="mt-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ink/[0.04] text-ink/40">
+                        <ChevronDown
+                          size={17}
+                          className={`transition-transform ${open ? 'rotate-180' : ''}`}
+                        />
+                      </span>
                     </button>
-                    <button onClick={() => deactivate(a)} className="flex min-h-[44px] shrink-0 items-center rounded-full bg-ink/5 px-3.5 text-xs font-semibold text-ink/60 active:scale-95">
-                      Archivar
+                    <button
+                      type="button"
+                      onClick={() => setActionsFor(a)}
+                      aria-label={`Gestionar aviso: ${a.title}`}
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ink/55 transition active:scale-90"
+                    >
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink/[0.05]">
+                        <More size={17} />
+                      </span>
                     </button>
                   </div>
                   {open && (
@@ -137,15 +151,6 @@ export default function AdminAnnouncements({ store }) {
                           {allRead && <Check size={13} />}
                           {allRead ? 'Leído por todos' : `Leído ${st.read.length}/${st.total}`}
                         </span>
-                        {!allRead && st.pending.length > 0 && (
-                          <button
-                            onClick={() => remind(a, st.pending)}
-                            disabled={busy}
-                            className="ml-auto flex min-h-[44px] items-center rounded-full bg-bronze/12 px-3.5 text-xs font-bold text-bronze-dark active:scale-95 disabled:opacity-50"
-                          >
-                            Recordar a {st.pending.length}
-                          </button>
-                        )}
                       </div>
                       {!allRead && st.pending.length > 0 && (
                         <p className="mt-1.5 text-xs text-ink/45">Falta: {st.pending.map((e) => e.name.split(' ')[0]).join(', ')}</p>
@@ -171,6 +176,56 @@ export default function AdminAnnouncements({ store }) {
           </div>
         )}
       </div>
+
+      <Sheet
+        open={Boolean(actionsFor)}
+        onClose={() => setActionsFor(null)}
+        title={actionsFor?.title || 'Gestionar aviso'}
+      >
+        {actionsFor && (() => {
+          const pending = readStat(actionsFor).pending
+          return (
+            <div className="space-y-2 pb-2">
+              {pending.length > 0 && (
+                <Button
+                  full
+                  variant="secondary"
+                  icon={Megaphone}
+                  loading={busy}
+                  onClick={() => {
+                    remind(actionsFor, pending)
+                    setActionsFor(null)
+                  }}
+                >
+                  Recordar a {pending.length}
+                </Button>
+              )}
+              <Button
+                full
+                variant="secondary"
+                icon={Archive}
+                onClick={() => {
+                  setArchiveTarget(actionsFor)
+                  setActionsFor(null)
+                }}
+              >
+                Archivar aviso
+              </Button>
+            </div>
+          )
+        })()}
+      </Sheet>
+
+      <ConfirmSheet
+        open={Boolean(archiveTarget)}
+        onClose={() => setArchiveTarget(null)}
+        onConfirm={() => deactivate(archiveTarget)}
+        title="Archivar aviso"
+        message={archiveTarget
+          ? `“${archiveTarget.title}” dejará de aparecer entre los avisos activos. Podrás consultarlo en el histórico.`
+          : ''}
+        confirmLabel="Archivar"
+      />
 
       {/* Histórico detrás de un enlace discreto: no satura la pantalla */}
       {pastAnn.length > 0 && (

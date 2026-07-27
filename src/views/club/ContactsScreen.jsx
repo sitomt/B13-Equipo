@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import OverlayScreen from '../../components/OverlayScreen'
 import Sheet from '../../components/Sheet'
 import { Button } from '../../components/controls'
@@ -76,6 +76,10 @@ function validate(form) {
   return errors
 }
 
+function supportsContactPicker() {
+  return Boolean(window.isSecureContext && navigator.contacts?.select)
+}
+
 function Field({ id, label, error, children }) {
   return (
     <label className="block" htmlFor={id}>
@@ -135,6 +139,12 @@ export default function ContactsScreen({ category, docs, employee, onClose, onRe
   const [form, setForm] = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
   const [busy, setBusy] = useState(false)
+  const [contactPickerSupported, setContactPickerSupported] = useState(false)
+  const [contactBusy, setContactBusy] = useState(false)
+
+  useEffect(() => {
+    setContactPickerSupported(supportsContactPicker())
+  }, [])
 
   const structuredItems = useMemo(
     () => sortedClubItems(
@@ -195,6 +205,52 @@ export default function ContactsScreen({ category, docs, employee, onClose, onRe
     setForm((current) => ({ ...current, [field]: value }))
     if (errors[field]) {
       setErrors((current) => ({ ...current, [field]: undefined }))
+    }
+  }
+
+  async function importFromDeviceContacts() {
+    if (!supportsContactPicker()) {
+      toast('Tu navegador no permite escoger contactos desde esta app.', 'error')
+      return
+    }
+
+    setContactBusy(true)
+    try {
+      const availableProperties = navigator.contacts.getProperties
+        ? await navigator.contacts.getProperties()
+        : ['name', 'tel']
+      const properties = ['name', 'tel'].filter((property) => availableProperties.includes(property))
+
+      if (!properties.includes('name') || !properties.includes('tel')) {
+        toast('Tu navegador no comparte nombre y teléfono de contactos.', 'error')
+        return
+      }
+
+      const contacts = await navigator.contacts.select(properties, { multiple: false })
+      const selected = contacts?.[0]
+      const name = Array.isArray(selected?.name) ? selected.name[0] : selected?.name
+      const phone = Array.isArray(selected?.tel) ? selected.tel[0] : selected?.tel
+
+      if (!name && !phone) {
+        toast('No se ha seleccionado ningún contacto.')
+        return
+      }
+
+      setForm((current) => ({
+        ...current,
+        name: name || current.name,
+        phone: phone || current.phone,
+      }))
+      setErrors((current) => ({ ...current, name: undefined, phone: undefined }))
+      haptic('success')
+      toast('Nombre y teléfono importados')
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        console.error(error)
+        toast('No se pudo abrir la agenda del móvil.', 'error')
+      }
+    } finally {
+      setContactBusy(false)
     }
   }
 
@@ -456,6 +512,20 @@ export default function ContactsScreen({ category, docs, employee, onClose, onRe
         maxH="92vh"
       >
         <form onSubmit={saveContact} noValidate className="space-y-4 pb-2">
+          {contactPickerSupported && (
+            <Button
+              type="button"
+              full
+              variant="secondary"
+              icon={User}
+              loading={contactBusy}
+              disabled={busy}
+              onClick={importFromDeviceContacts}
+            >
+              Importar de agenda
+            </Button>
+          )}
+
           <Field id="contact-service" label="Servicio u oficio" error={errors.service}>
             <input
               id="contact-service"

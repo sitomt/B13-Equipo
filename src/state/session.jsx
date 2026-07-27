@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
+import { getEmployee } from '../lib/api'
 
 // Sesión SIMULADA: no hay login real todavía. Guardamos el empleado
 // "activo" para poder entrar/salir de cada rol al instante. Se sustituirá
@@ -20,6 +21,17 @@ export function SessionProvider({ children }) {
     if (employee) localStorage.setItem(STORAGE_KEY, JSON.stringify(employee))
     else localStorage.removeItem(STORAGE_KEY)
   }, [employee])
+
+  // La sesión es local para permitir cambiar de perfil con rapidez. Al abrir la
+  // app, se sincroniza el perfil por si dirección cambió su configuración.
+  useEffect(() => {
+    if (!employee?.id) return undefined
+    let cancelled = false
+    getEmployee(employee.id)
+      .then((profile) => { if (profile && !cancelled) setEmployee(profile) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [employee?.id])
 
   const login = (emp) => setEmployee(emp)
   const logout = () => setEmployee(null)

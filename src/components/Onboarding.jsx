@@ -34,6 +34,7 @@ function PlusAction({ icon: Icon, label, tone = 'bronze' }) {
 // Pasos del tutorial según el rol. Cada uno: { icon, title, body }.
 function stepsFor(employee) {
   const geo = isGeofenced(employee)
+  const tracksTime = employee.requires_time_tracking !== false
   const fichajeStep = {
     icon: geo ? MapPin : Power,
     title: 'Ficha tu jornada',
@@ -45,7 +46,7 @@ function stepsFor(employee) {
   if (employee.role === 'coach') {
     return [
       { icon: Dumbbell, title: `Hola, ${employee.name.split(' ')[0]}`, body: 'Esta es tu app de Baktun 13. En 30 segundos te enseño lo básico para que la uses sin perderte.' },
-      fichajeStep,
+      ...(tracksTime ? [fichajeStep] : []),
       { icon: Activity, title: 'Pestaña "Hoy"', body: 'Tu día de un vistazo: apertura, tareas y cierre. Marca cada tarea con un toque; con "Marcar todo" cierras una sección entera de golpe.' },
       { icon: Dumbbell, title: 'Pestaña "El gym"', body: 'El estado del club: incidencias abiertas (puedes resolverlas), qué está arreglando mantenimiento y cómo va la limpieza de hoy.' },
       { icon: Calendar, title: 'Pestaña "Horarios"', body: 'Tu cuadrante de la semana y tus horas trabajadas.' },
@@ -66,7 +67,7 @@ function stepsFor(employee) {
   if (employee.role === 'cleaning') {
     return [
       { icon: Spray, title: `Hola, ${employee.name.split(' ')[0]}`, body: 'Bienvenida a la app de Baktun 13. Te enseño lo básico para tu ruta.' },
-      fichajeStep,
+      ...(tracksTime ? [fichajeStep] : []),
       { icon: Activity, title: 'Pestaña "Ruta"', body: 'Tus tareas de limpieza de hoy. Márcalas con un toque. Si dirección manda un aviso urgente, aparecerá en rojo arriba del todo.' },
       { icon: BarChart, title: 'Pestaña "Estadísticas"', body: 'Tu resumen: tareas hechas, avisos atendidos y horas, por día/semana/mes.' },
       { icon: Megaphone, title: 'Cabecera', body: 'Arriba tienes "Aviso" para avisar a los coaches, "Horarios" para ver tu cuadrante y "Utilidades" con los manuales.' },
@@ -76,7 +77,7 @@ function stepsFor(employee) {
   if (employee.role === 'maintenance') {
     return [
       { icon: Wrench, title: `Hola, ${employee.name.split(' ')[0]}`, body: 'Bienvenido a la app de Baktun 13. Aquí gestionas los partes de mantenimiento.' },
-      fichajeStep,
+      ...(tracksTime ? [fichajeStep] : []),
       { icon: Alert, title: 'Tus partes', body: 'Arriba ves cuántos hay Pendientes, En curso y Resueltos. Filtra por área y busca en el histórico.' },
       {
         icon: Clock, title: 'Cómo trabajar un parte', body: (
@@ -101,7 +102,7 @@ function stepsFor(employee) {
   // admin
   return [
     { icon: Settings, title: `Hola, ${employee.name.split(' ')[0]}`, body: 'Bienvenido al panel de Baktun 13. Lo ves todo y lo controlas todo desde aquí.' },
-    fichajeStep,
+    ...(tracksTime ? [fichajeStep] : []),
     { icon: Activity, title: 'Resumen', body: 'Quién está fichado ahora, progreso de tareas del equipo e incidencias abiertas. Cambia a "Histórico" para las estadísticas.' },
     { icon: Calendar, title: 'Horarios e Incidencias', body: 'Crea y publica el cuadrante de turnos, y gestiona las incidencias internas y los partes de mantenimiento.' },
     { icon: User, title: 'Equipo y Plantillas', body: 'Da de alta personas y decide quién ficha por geocerca. En Plantillas editas la agenda diaria y el mantenimiento preventivo.' },

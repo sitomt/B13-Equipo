@@ -22,7 +22,7 @@ async function resilientInsert(table, row) {
 
 // ---------- EMPLEADOS ----------
 // Columnas seguras: nunca se selecciona `pin` (el PIN solo se valida en el servidor vía RPC).
-const EMP_COLS = 'id, name, role, color, active, birth_date, photo_url, geofenced'
+const EMP_COLS = 'id, name, role, color, active, birth_date, photo_url, geofenced, requires_time_tracking'
 
 export async function listEmployees() {
   const { data, error } = await supabase
@@ -43,6 +43,18 @@ export async function listAllEmployees() {
     .order('active', { ascending: false })
     .order('role')
     .order('name')
+  if (error) throw error
+  return data
+}
+
+// Perfil actual completo: refresca la preferencia de fichaje de una sesión
+// guardada localmente después de que dirección la cambie.
+export async function getEmployee(id) {
+  const { data, error } = await supabase
+    .from('employees')
+    .select(EMP_COLS)
+    .eq('id', id)
+    .maybeSingle()
   if (error) throw error
   return data
 }
@@ -86,10 +98,24 @@ export async function clearPin(employeeId) {
 // Alta de un nuevo perfil. Crea la fila en la BD (login simulado actual).
 // `geofenced`: si true, solo puede fichar dentro de la geocerca del gym.
 // El admin (responsable/dueño) ficha desde cualquier sitio → siempre false.
-export async function createEmployee({ name, role, color, birth_date = null, geofenced = true }) {
+export async function createEmployee({
+  name,
+  role,
+  color,
+  birth_date = null,
+  geofenced = true,
+  requires_time_tracking = true,
+}) {
   const { data, error } = await supabase
     .from('employees')
-    .insert({ name, role, color, birth_date, geofenced: role === 'admin' ? false : geofenced })
+    .insert({
+      name,
+      role,
+      color,
+      birth_date,
+      geofenced: role === 'admin' ? false : geofenced,
+      requires_time_tracking: role === 'admin' ? requires_time_tracking : true,
+    })
     .select()
     .single()
   if (error) throw error
@@ -97,8 +123,9 @@ export async function createEmployee({ name, role, color, birth_date = null, geo
 }
 
 export async function updateEmployee(id, patch) {
-  const { error } = await supabase.from('employees').update(patch).eq('id', id)
+  const { data, error } = await supabase.from('employees').update(patch).eq('id', id).select(EMP_COLS).single()
   if (error) throw error
+  return data
 }
 
 // Baja lógica: conserva el histórico (fichajes, turnos, incidencias) y lo

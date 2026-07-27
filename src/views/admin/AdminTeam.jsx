@@ -30,6 +30,7 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
   const [color, setColor] = useState(COLORS[0])
   const [birthDate, setBirthDate] = useState('')
   const [geofenced, setGeofenced] = useState(true)
+  const [requiresTimeTracking, setRequiresTimeTracking] = useState(true)
   const [busy, setBusy] = useState(false)
   const [confirmPin, setConfirmPin] = useState(false)
 
@@ -41,6 +42,7 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
     setColor(editing?.color || COLORS[0])
     setBirthDate(editing?.birth_date || '')
     setGeofenced(editing?.geofenced ?? true)
+    setRequiresTimeTracking(editing?.requires_time_tracking ?? true)
     setConfirmPin(false)
     setLastOpen(true)
   } else if (!open && lastOpen) {
@@ -61,12 +63,18 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
     try {
       // El admin nunca tiene geocerca (ficha desde cualquier sitio).
       const geofencedFinal = role === 'admin' ? false : geofenced
-      const fields = { name: name.trim(), role, color, birth_date: birthDate || null, geofenced: geofencedFinal }
-      if (editing) await updateEmployee(editing.id, fields)
-      else await createEmployee(fields)
+      const fields = {
+        name: name.trim(),
+        role,
+        color,
+        birth_date: birthDate || null,
+        geofenced: geofencedFinal,
+        requires_time_tracking: role === 'admin' ? requiresTimeTracking : true,
+      }
+      const saved = editing ? await updateEmployee(editing.id, fields) : await createEmployee(fields)
       toast(editing ? 'Perfil actualizado ✓' : 'Perfil creado ✓')
       onClose()
-      onSaved?.()
+      onSaved?.(saved)
     } catch { toast('No se pudo guardar', 'error') } finally { setBusy(false) }
   }
 
@@ -144,9 +152,30 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
         </button>
       )}
       {role === 'admin' && (
-        <p className="mb-5 flex items-center gap-2 px-1 text-xs text-ink/45">
-          <MapPin size={14} /> Los perfiles de administración fichan sin restricción de ubicación.
-        </p>
+        <div className="mb-5 space-y-2">
+          <p className="flex items-center gap-2 px-1 text-xs text-ink/45">
+            <MapPin size={14} /> Los perfiles de administración fichan sin restricción de ubicación.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRequiresTimeTracking((v) => !v)}
+            aria-pressed={requiresTimeTracking}
+            className="flex w-full items-center gap-3 rounded-2xl bg-ink/[0.04] p-4 text-left transition active:scale-[0.99]"
+          >
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${requiresTimeTracking ? 'bg-bronze/15 text-bronze-dark' : 'bg-ink/8 text-ink/40'}`}>
+              <Clock size={20} />
+            </span>
+            <span className="flex-1">
+              <span className="block font-semibold text-ink">Debe fichar</span>
+              <span className="block text-xs text-ink/45">
+                {requiresTimeTracking ? 'Verá y registrará su jornada' : 'No verá el fichaje ni se le pedirá registrar jornada'}
+              </span>
+            </span>
+            <span className={`relative h-7 w-12 shrink-0 rounded-full transition ${requiresTimeTracking ? 'bg-sage' : 'bg-ink/15'}`}>
+              <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${requiresTimeTracking ? 'left-6' : 'left-1'}`} />
+            </span>
+          </button>
+        </div>
       )}
 
       <button
@@ -175,7 +204,7 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
 }
 
 export default function AdminTeam() {
-  const { employee: me } = useSession()
+  const { employee: me, login } = useSession()
   const toast = useToast()
   const emp = useData(listAllEmployees, [])
   const [editorOpen, setEditorOpen] = useState(false)
@@ -251,16 +280,18 @@ export default function AdminTeam() {
                       <Avatar emp={e} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-semibold text-ink">{e.name}{isBirthdayToday(e.birth_date) && <span title="Hoy es su cumpleaños"> 🎂</span>}{e.id === me?.id && <span className="ml-1.5 text-xs font-normal text-ink/35">(tú)</span>}</p>
-                        <p className="text-xs text-ink/40">Toca para editar</p>
+                        <p className="text-xs text-ink/40">{e.requires_time_tracking === false ? 'No ficha · Toca para editar' : 'Toca para editar'}</p>
                       </div>
                     </button>
-                    <button
-                      onClick={() => setTimesFor(e)}
-                      aria-label={`Corregir fichajes de ${e.name}`}
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-ink/55 transition active:scale-90"
-                    >
-                      <Clock size={18} />
-                    </button>
+                    {e.requires_time_tracking !== false && (
+                      <button
+                        onClick={() => setTimesFor(e)}
+                        aria-label={`Corregir fichajes de ${e.name}`}
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-ink/55 transition active:scale-90"
+                      >
+                        <Clock size={18} />
+                      </button>
+                    )}
                     {e.id !== me?.id && (
                       <button
                         onClick={() => setConfirming(e)}
@@ -301,7 +332,10 @@ export default function AdminTeam() {
         open={editorOpen}
         onClose={() => setEditorOpen(false)}
         editing={editing}
-        onSaved={() => emp.reload(true)}
+        onSaved={(saved) => {
+          if (saved?.id === me?.id) login(saved)
+          emp.reload(true)
+        }}
       />
 
       <GeofenceEditor open={geofenceOpen} onClose={() => setGeofenceOpen(false)} />

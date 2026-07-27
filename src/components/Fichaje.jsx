@@ -134,6 +134,11 @@ function ShiftDetail({ entries = [], live, status, now }) {
 }
 
 export default function Fichaje({ employee, onChange }) {
+  if (employee?.requires_time_tracking === false) return null
+  return <FichajeTracker employee={employee} onChange={onChange} />
+}
+
+function FichajeTracker({ employee, onChange }) {
   const { data: entries, reload } = useData(() => todayEntries(employee.id), [employee.id], { interval: 60000 })
   const { data: fence } = useData(getGeofence, [])
   const [busy, setBusy] = useState(false)

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { loginList, setPin, verifyPin, uploadPhoto, updateEmployee } from '../lib/api'
+import { getEmployee, loginList, setPin, verifyPin, uploadPhoto, updateEmployee } from '../lib/api'
 import { useData } from '../lib/useData'
 import { useSession } from '../state/session'
 import { useToast } from '../components/Toast'
@@ -40,8 +40,24 @@ export default function RoleSwitcher() {
   }
   function back() { setSel(null); setFirstPin(''); setPhase('first') }
 
-  function enterApp(emp, extra = {}) {
-    login({ id: emp.id, name: emp.name, role: emp.role, color: emp.color, photo_url: emp.photo_url || null, geofenced: emp.geofenced ?? true, ...extra })
+  async function enterApp(emp, extra = {}) {
+    try {
+      const profile = await getEmployee(emp.id)
+      if (profile) {
+        login({ ...profile, ...extra })
+        return
+      }
+    } catch { /* si no hay cobertura, se conserva el acceso disponible */ }
+    login({
+      id: emp.id,
+      name: emp.name,
+      role: emp.role,
+      color: emp.color,
+      photo_url: emp.photo_url || null,
+      geofenced: emp.geofenced ?? true,
+      requires_time_tracking: emp.requires_time_tracking ?? true,
+      ...extra,
+    })
   }
 
   async function handleComplete(pin) {
