@@ -40,7 +40,7 @@ export function ToastProvider({ children }) {
             {t.action && (
               <button
                 onClick={() => { t.action.onClick(); dismiss(t.id) }}
-                className="ml-1 rounded-full bg-white/15 px-3 py-1 text-xs font-bold text-white transition-enter active:scale-90"
+                className="ml-1 min-h-[44px] rounded-full bg-white/15 px-3 text-xs font-bold text-white transition-enter active:scale-90"
               >
                 {t.action.label}
               </button>

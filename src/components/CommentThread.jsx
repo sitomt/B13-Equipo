@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { haptic } from '../lib/haptics'
 import { relativeTime } from '../lib/date'
 import { useToast } from './Toast'
@@ -29,6 +29,7 @@ function CommentRow({ c, empById }) {
 // sand; sobre nota sand (fromPeer) va blanco.
 // ============================================================================
 export default function CommentThread({ comments = [], employee, empById, onSend, readOnly = false, tone = 'white' }) {
+  const inputId = useId()
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState('')
   const [pending, setPending] = useState([]) // comentarios optimistas en vuelo
@@ -69,12 +70,16 @@ export default function CommentThread({ comments = [], employee, empById, onSend
 
   return (
     <div className="border-t border-ink/[0.06] px-4 py-3">
-      {hiddenCount > 0 && !expanded && (
+      {hiddenCount > 0 && (
         <button
-          onClick={() => { haptic('tap'); setExpanded(true) }}
+          type="button"
+          onClick={() => { haptic('tap'); setExpanded((value) => !value) }}
+          aria-expanded={expanded}
           className="-mt-1 flex min-h-[44px] items-center text-xs font-semibold text-bronze-dark active:opacity-70"
         >
-          Ver {hiddenCount} {hiddenCount === 1 ? 'anterior' : 'anteriores'}
+          {expanded
+            ? 'Ocultar anteriores'
+            : `Ver ${hiddenCount} ${hiddenCount === 1 ? 'anterior' : 'anteriores'}`}
         </button>
       )}
       {all.length > 0 && (
@@ -84,11 +89,13 @@ export default function CommentThread({ comments = [], employee, empById, onSend
       )}
       {!readOnly && (
         <form onSubmit={send} className={`flex items-center gap-2 ${all.length > 0 ? 'mt-2.5' : ''}`}>
+          <label htmlFor={inputId} className="sr-only">Responder al aviso</label>
           <input
+            id={inputId}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Responder…"
-            className={`min-h-[40px] min-w-0 flex-1 rounded-full ${inputBg} px-4 text-sm text-ink placeholder:text-ink/35 outline-none border border-ink/[0.06] focus:border-ink/15`}
+            className={`min-h-[44px] min-w-0 flex-1 rounded-full ${inputBg} px-4 text-base text-ink placeholder:text-ink/35 outline-none border border-ink/[0.06] focus:border-ink/15`}
           />
           {draft.trim() && (
             <button

@@ -76,7 +76,7 @@ export default function CameraCapture({ open, onClose, onCapture }) {
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-black">
       <button onClick={close} aria-label="Cerrar cámara"
-        className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white active:scale-90"
+        className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white active:scale-90"
         style={{ marginTop: 'env(safe-area-inset-top)' }}>
         <X size={20} />
       </button>

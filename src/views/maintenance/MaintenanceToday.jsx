@@ -154,14 +154,20 @@ export default function MaintenanceToday({ refresh = 0, anns = [], onOpenAnns })
       </div>
 
       {/* Búsqueda en el histórico (título, zona, área, descripción) */}
-      <div className="relative">
-        <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/30" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar parte…"
-          className="field !pl-10"
-        />
+      <div>
+        <label htmlFor="maintenance-search" className="mb-1.5 block px-1 text-xs font-bold text-ink/50">
+          Buscar en reparaciones
+        </label>
+        <div className="relative">
+          <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/30" />
+          <input
+            id="maintenance-search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Título, zona, área o descripción"
+            className="field !pl-10"
+          />
+        </div>
       </div>
 
       {areas.data && areas.data.length > 1 && (

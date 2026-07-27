@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useData } from './useData'
 import {
   recentAnnouncements, listAllAnnouncements, listAnnouncementReads, listEmployees,
@@ -35,6 +35,12 @@ export function useAnnouncements(role, employee) {
     [employee?.id],
   )
 
+  useEffect(() => {
+    const reload = () => ann.reload(true)
+    window.addEventListener('b13:announcements-changed', reload)
+    return () => window.removeEventListener('b13:announcements-changed', reload)
+  }, [ann.reload])
+
   // Avisos ya marcados (o en vuelo) en esta sesión: evita re-disparar el
   // marcado en bucle cuando el reload de lecturas re-ejecuta el efecto.
   const markedRef = useRef(new Set())
@@ -42,7 +48,7 @@ export function useAnnouncements(role, employee) {
   const seenMarkedRef = useRef(false)
 
   const today = todayMadrid()
-  const activos = (ann.data || []).filter((a) => a.active && a.ends_on >= today)
+  const activos = (ann.data || []).filter((a) => a.active && a.starts_on <= today && a.ends_on >= today)
   const anteriores = (ann.data || [])
     .filter((a) => !(a.active && a.ends_on >= today))
     .sort((a, b) => (a.ends_on < b.ends_on ? 1 : -1))
@@ -91,21 +97,23 @@ export function useAnnouncements(role, employee) {
           new Date(c.created_at).getTime() > seenAt,
       ).length
 
-  // Avisos vigentes que este empleado aún no ha leído (para el admin ese
-  // término es 0) + comentarios nuevos → badge del navbar.
-  const annUnread = !employee || employee.role === 'admin'
-    ? 0
-    : activos.filter((a) => !(readsByAnn.get(a.id) || new Set()).has(employee.id)).length
+  // Avisos dirigidos a esta persona que todavía no ha leído. Dirección carga
+  // todos los avisos para gestionarlos, pero su resumen solo cuenta los que
+  // incluyen explícitamente a admin y no los que publicó ella misma.
+  const unreadAnnouncements = !employee
+    ? []
+    : activos.filter((a) =>
+        (employee.role !== 'admin' || a.target_roles?.includes('admin')) &&
+        !(readsByAnn.get(a.id) || new Set()).has(employee.id))
+  const annUnread = unreadAnnouncements.length
   const unreadCount = annUnread + commentUnread
 
   const loading = ann.loading || reads.loading
 
-  // Marca como leídos todos los vigentes pendientes (al abrir la pestaña).
+  // Marca como leídos todos los dirigidos a la persona al abrir la pestaña.
   const markActiveRead = useCallback(async () => {
-    if (!employee || employee.role === 'admin') return
-    const pending = activos.filter(
-      (a) => !(readsByAnn.get(a.id) || new Set()).has(employee.id) && !markedRef.current.has(a.id),
-    )
+    if (!employee) return
+    const pending = unreadAnnouncements.filter((a) => !markedRef.current.has(a.id))
     if (pending.length === 0) return
     pending.forEach((a) => markedRef.current.add(a.id))
     try {
@@ -117,6 +125,24 @@ export function useAnnouncements(role, employee) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ann.data, reads.data, employee?.id])
+
+  // Marca únicamente el aviso que la persona acaba de abrir. Es la operación
+  // usada por las vistas del equipo para que entrar en la pestaña no borre de
+  // golpe todos los pendientes del Resumen.
+  const markOneRead = useCallback(async (announcement) => {
+    if (!employee || !announcement?.id) return
+    if (markedRef.current.has(announcement.id)) return
+    if ((readsByAnn.get(announcement.id) || new Set()).has(employee.id)) return
+    markedRef.current.add(announcement.id)
+    try {
+      await markAnnouncementRead(announcement.id, employee.id)
+      await reads.reload(true)
+    } catch {
+      markedRef.current.delete(announcement.id)
+      throw new Error('No se pudo marcar el aviso como leído')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee?.id, reads.data])
 
   // Estampa "conversación vista ahora" (al abrir la pestaña). El ref evita
   // repetir el upsert en cada re-render de la misma sesión de pantalla.
@@ -141,7 +167,7 @@ export function useAnnouncements(role, employee) {
   }, [employee?.id])
 
   return {
-    activos, anteriores, unreadCount, statFor, markActiveRead, loading,
+    activos, anteriores, unreadAnnouncements, unreadCount, statFor, markActiveRead, markOneRead, loading,
     commentsFor, addComment, markCommentsSeen, empById,
   }
 }

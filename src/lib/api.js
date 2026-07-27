@@ -374,6 +374,43 @@ export async function uploadPhoto(file, folder = 'incidents') {
   return data.publicUrl
 }
 
+// Adjuntos del Club durante la fase piloto. Reutiliza el bucket actual para no
+// exigir migraciones antes de terminar los recorridos. La fase de seguridad
+// moverá estos archivos a un bucket privado con URLs temporales.
+export async function uploadClubFile(file, folder = 'club') {
+  return uploadPhoto(file, folder)
+}
+
+export async function deleteClubFiles(urls = []) {
+  const marker = `/object/public/${PHOTO_BUCKET}/`
+  const paths = urls
+    .filter(Boolean)
+    .map((url) => {
+      try {
+        const pathname = decodeURIComponent(new URL(url).pathname)
+        const markerIndex = pathname.indexOf(marker)
+        if (markerIndex === -1) return null
+        const path = pathname.slice(markerIndex + marker.length)
+        return path.startsWith('club/') ? path : null
+      } catch {
+        return null
+      }
+    })
+    .filter(Boolean)
+
+  if (paths.length === 0) return true
+  const { data, error } = await supabase.storage.from(PHOTO_BUCKET).remove(paths)
+  if (error) {
+    console.warn('No se pudieron limpiar algunos archivos del Club', error)
+    return false
+  }
+  if ((data || []).length !== paths.length) {
+    console.warn('Storage no autorizó la limpieza de algunos archivos del Club')
+    return false
+  }
+  return true
+}
+
 // ---------- INCIDENCIAS INTERNAS (las resuelve el equipo) ----------
 export async function listIncidencias() {
   const { data, error } = await supabase
@@ -737,11 +774,31 @@ export async function listAllAnnouncements() {
   return data
 }
 
-export async function createAnnouncement(a) {
+export async function createAnnouncement(a, { notifyPush = true } = {}) {
   const { error } = await supabase.from('announcements').insert(a)
   if (error) throw error
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('b13:announcements-changed'))
+  }
   // Notificación push a los destinatarios (no bloquea ni rompe el alta si falla).
-  notifyAnnouncement(a)
+  if (notifyPush) notifyAnnouncement(a)
+}
+
+// Novedad generada por una publicación del Club. En esta primera fase vive
+// dentro de la app; el mismo evento podrá activar Web Push más adelante.
+export async function createClubNotification({ employee, title, body, targetRoles }) {
+  const today = todayMadrid()
+  return createAnnouncement({
+    title,
+    body: body || null,
+    target_roles: targetRoles,
+    priority: 'normal',
+    starts_on: today,
+    ends_on: addDaysMadrid(30),
+    created_by: employee.id,
+    created_by_name: employee.name,
+    created_by_role: employee.role,
+  }, { notifyPush: false })
 }
 
 // ---------- WEB PUSH (notificaciones tipo banner) ----------

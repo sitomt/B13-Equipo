@@ -262,7 +262,7 @@ export default function AdminTemplates() {
                   const on = draft.weekdays.includes(w.v)
                   return (
                     <button key={w.v} onClick={() => setDraft({ ...draft, weekdays: on ? draft.weekdays.filter((x) => x !== w.v) : [...draft.weekdays, w.v] })}
-                      className={`h-10 w-10 rounded-full text-sm font-bold transition active:scale-90 ${on ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/50'}`}>
+                      className={`h-11 w-11 rounded-full text-sm font-bold transition active:scale-90 ${on ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/50'}`}>
                       {w.l}
                     </button>
                   )
@@ -306,10 +306,10 @@ export default function AdminTemplates() {
               confirmDel ? (
                 <div className="flex items-center gap-2 rounded-2xl bg-terracotta/8 p-2">
                   <span className="flex-1 px-2 text-sm font-semibold text-terracotta">¿Eliminar esta plantilla?</span>
-                  <button onClick={() => setConfirmDel(false)} className="rounded-xl bg-white px-3 py-2 text-sm font-bold text-ink/60 transition-enter active:scale-95">
+                  <button onClick={() => setConfirmDel(false)} className="min-h-[44px] rounded-xl bg-white px-3 text-sm font-bold text-ink/60 transition-enter active:scale-95">
                     Cancelar
                   </button>
-                  <button onClick={remove} disabled={busy} className="rounded-xl bg-terracotta px-3 py-2 text-sm font-extrabold text-white transition-enter active:scale-95 disabled:opacity-50">
+                  <button onClick={remove} disabled={busy} className="min-h-[44px] rounded-xl bg-terracotta px-3 text-sm font-extrabold text-white transition-enter active:scale-95 disabled:opacity-50">
                     Sí, eliminar
                   </button>
                 </div>

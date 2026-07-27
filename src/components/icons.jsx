@@ -29,6 +29,15 @@ export const LogOut = (p) => <S {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 
 export const Plus = (p) => <S {...p}><path d="M12 5v14M5 12h14" /></S>
 export const Send = (p) => <S {...p}><path d="m22 2-7 20-4-9-9-4 20-7Z" /><path d="M22 2 11 13" /></S>
 export const Chat = (p) => <S {...p}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" /></S>
+export const Phone = (p) => <S {...p}><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c1 .4 1.9.6 2.9.7a2 2 0 0 1 1.7 2Z" /></S>
+export const More = (p) => <S {...p}><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" /></S>
+export const Eye = (p) => <S {...p}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></S>
+export const EyeOff = (p) => <S {...p}><path d="m3 3 18 18" /><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 4.2A10.5 10.5 0 0 1 12 4c6.5 0 10 8 10 8a17.8 17.8 0 0 1-2.1 3.2M6.6 6.6C3.6 8.6 2 12 2 12s3.5 8 10 8a9.7 9.7 0 0 0 4.1-.9" /></S>
+export const Copy = (p) => <S {...p}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3" /></S>
+export const File = (p) => <S {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 13h8M8 17h6" /></S>
+export const Upload = (p) => <S {...p}><path d="M12 16V4M7 9l5-5 5 5" /><path d="M4 20h16" /></S>
+export const Archive = (p) => <S {...p}><path d="M3 6h18v14H3zM2 2h20v4H2zM9 10h6" /></S>
+export const ExternalLink = (p) => <S {...p}><path d="M14 3h7v7M10 14 21 3" /><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" /></S>
 export const X = (p) => <S {...p}><path d="M18 6 6 18M6 6l12 12" /></S>
 export const Alert = (p) => (
   <S {...p}><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4M12 17h.01" /></S>
@@ -44,6 +53,8 @@ export const Megaphone = (p) => (
 )
 export const Chevron = (p) => <S {...p}><path d="m9 18 6-6-6-6" /></S>
 export const ChevronDown = (p) => <S {...p}><path d="m6 9 6 6 6-6" /></S>
+export const ArrowUp = (p) => <S {...p}><path d="m12 19V5M6 11l6-6 6 6" /></S>
+export const ArrowDown = (p) => <S {...p}><path d="M12 5v14M18 13l-6 6-6-6" /></S>
 export const GripVertical = (p) => <S {...p}><circle cx="9" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="19" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="19" r="1" fill="currentColor" stroke="none"/></S>
 export const Dumbbell = (p) => (
   <S {...p}><path d="m6.5 6.5 11 11" /><path d="M21 21l-1-1M3 3l1 1" /><path d="m18 22 4-4M2 6l4-4" /><path d="m7 17-5-5M22 12l-5-5" /></S>

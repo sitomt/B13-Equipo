@@ -1,11 +1,11 @@
 import {
-  listEmployees, allTodayEntries, listIncidencias, listMaintenance, listAllAnnouncements,
+  listEmployees, allTodayEntries, listIncidencias, listMaintenance,
   listAdHoc, listTemplates, todayCompletions, deriveStatus,
 } from '../../lib/api'
 import { useData } from '../../lib/useData'
 import { buildAgenda } from '../../lib/agenda'
-import { useState, useEffect } from 'react'
-import { todayMadrid, timeHM, relativeTime, appliesToday } from '../../lib/date'
+import { useState } from 'react'
+import { timeHM, relativeTime, appliesToday, daysBetween } from '../../lib/date'
 import { Card, Tag, CountBadge, ProgressRing, Spinner, Avatar } from '../../components/ui'
 import SectionCard from '../../components/SectionCard'
 import AlertsBanner from '../../components/AlertsBanner'
@@ -13,7 +13,7 @@ import { BirthdayNotice } from '../../components/Birthday'
 import Fichaje from '../../components/Fichaje'
 import NotificationsBanner from '../../components/NotificationsBanner'
 import { useSession } from '../../state/session'
-import { User, Activity, Alert, Spray, Coffee, Utensils, Check, Refresh, ChevronDown, Clock } from '../../components/icons'
+import { User, Activity, Alert, Spray, Coffee, Utensils, Check, Refresh, ChevronDown, Clock, Chevron } from '../../components/icons'
 
 const STATUS_META = {
   working: { label: 'En turno', color: 'bg-sage', text: 'text-sage', icon: Activity },
@@ -62,24 +62,18 @@ function RecurringRow({ row }) {
   )
 }
 
-export default function AdminDashboard({ onOpenAnns }) {
+export default function AdminDashboard({ announcementStore, onOpenAnns, onOpenIncidents }) {
   const { employee } = useSession()
   const emp = useData(listEmployees, [])
   const entries = useData(allTodayEntries, [], { interval: 15000 })
   const incid = useData(listIncidencias, [], { interval: 20000 })
   const maint = useData(listMaintenance, [], { interval: 20000 })
-  const ann = useData(listAllAnnouncements, [], { interval: 60000 })
   const adhoc = useData(() => listAdHoc('cleaning'), [], { interval: 20000 })
 
   const coachTpl = useData(() => listTemplates('coach'), [])
   const coachComp = useData(() => todayCompletions('coach'), [], { interval: 30000 })
   const cleanTpl = useData(() => listTemplates('cleaning'), [])
   const cleanComp = useData(() => todayCompletions('cleaning'), [], { interval: 30000 })
-
-  // Sello real de última sincronización: marca la hora cuando llegan datos nuevos
-  // de presencia (no la hora de pintado, que era engañosa).
-  const [syncedAt, setSyncedAt] = useState(Date.now())
-  useEffect(() => { if (entries.data) setSyncedAt(Date.now()) }, [entries.data])
 
   if (emp.loading || entries.loading) {
     return <div className="flex justify-center py-16"><Spinner className="h-7 w-7" /></div>
@@ -125,8 +119,13 @@ export default function AdminDashboard({ onOpenAnns }) {
     ...openIncid.map((i) => ({ ...i, _src: 'inc' })),
     ...openMaint.map((i) => ({ ...i, _src: 'mant' })),
   ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-  const today = todayMadrid()
-  const activeAnn = (ann.data || []).filter((a) => a.active && a.starts_on <= today && a.ends_on >= today)
+  const attentionIncidents = openAll
+    .filter((i) => i.priority === 'urgent' || daysBetween(i.created_at) >= 2)
+    .sort((a, b) => {
+      if (a.priority === 'urgent' && b.priority !== 'urgent') return -1
+      if (b.priority === 'urgent' && a.priority !== 'urgent') return 1
+      return new Date(a.created_at) - new Date(b.created_at)
+    })
   const urgentClean = (adhoc.data || []).filter((t) => t.status === 'pending' && t.priority === 'urgent')
 
   return (
@@ -134,17 +133,8 @@ export default function AdminDashboard({ onOpenAnns }) {
       <BirthdayNotice />
       {/* El responsable también ficha (sin geocerca: desde cualquier sitio) */}
       <Fichaje employee={employee} />
-      {/* Avisos activos: banner compacto que salta a Comunicación → Avisos */}
-      <AlertsBanner anns={activeAnn} onOpen={onOpenAnns} />
+      <AlertsBanner anns={announcementStore?.unreadAnnouncements || []} onOpen={onOpenAnns} />
       <NotificationsBanner />
-      {/* Frescura de datos: es información, no un estado → texto plano discreto */}
-      <p className="flex items-center gap-2 px-1">
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sage opacity-60" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-sage" />
-        </span>
-        <span className="text-xs font-semibold text-ink/45">En directo · actualizado {timeHM(new Date(syncedAt).toISOString())}</span>
-      </p>
 
       {/* Aviso urgente activo a limpieza */}
       {urgentClean.length > 0 && (
@@ -194,7 +184,7 @@ export default function AdminDashboard({ onOpenAnns }) {
 
       {/* Progreso operativo: anillos + rondas/repasos recurrentes de hoy (aseos,
           etc.) en una sola sección — es todo "cómo va el día", un colapsable menos. */}
-      <SectionCard icon={Activity} title="Progreso de hoy" persistKey="b13.admin.progreso">
+      <SectionCard icon={Activity} title="Progreso de hoy" persistKey="b13.admin.progreso.v2" defaultOpen={false}>
         <div className="grid grid-cols-2 gap-4 p-4">
           <div className="flex flex-col items-center gap-2">
             <ProgressRing value={coachProg.dayProgress} size={72}>
@@ -219,15 +209,26 @@ export default function AdminDashboard({ onOpenAnns }) {
         {recurringRows.map((row) => <RecurringRow key={row.t.id} row={row} />)}
       </SectionCard>
 
-      {/* Incidencias y mantenimiento abiertos */}
+      {/* Resumen solo de pendientes urgentes o envejecidos; el listado completo
+          y sus acciones viven en Incidencias. */}
       <SectionCard
         icon={Alert}
-        title="Incidencias y mantenimiento"
-        right={<CountBadge tone="ink">{openAll.length}</CountBadge>}
-        persistKey="b13.admin.incidencias"
-        empty={{ icon: Check, text: 'Nada pendiente' }}
+        title="Requieren atención"
+        right={<CountBadge tone={attentionIncidents.length ? 'terracotta' : 'ink'}>{attentionIncidents.length}</CountBadge>}
+        action={openAll.length > 0 ? (
+          <button
+            type="button"
+            onClick={onOpenIncidents}
+            aria-label="Ver todas las incidencias"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-ink/50 active:scale-90"
+          >
+            <Chevron size={18} />
+          </button>
+        ) : null}
+        persistKey="b13.admin.atencion"
+        empty={{ icon: Check, text: 'Nada urgente ni envejecido' }}
       >
-        {openAll.map((i) => (
+        {attentionIncidents.slice(0, 3).map((i) => (
           <div key={i._src + i.id} className="flex items-center gap-3 p-3">
             <div className={`h-9 w-1.5 rounded-full ${i.priority === 'urgent' ? 'bg-terracotta' : 'bg-ochre'}`} />
             <div className="min-w-0 flex-1">

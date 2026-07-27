@@ -1,59 +1,129 @@
 import { useMemo, useState } from 'react'
-import { Card, SkeletonList } from '../../components/ui'
+import { Card, EmptyState, SkeletonList } from '../../components/ui'
 import { useData } from '../../lib/useData'
 import { useToast } from '../../components/Toast'
-import { listTimeBands, listUtilityCategories, listUtilityDocs } from '../../lib/api'
-import { canSeeDoc, categoryIcon } from './utilityMeta'
-import CategoryScreen from './CategoryScreen'
-import CategorySheet from './CategorySheet'
+import {
+  createClubNotification,
+  listTimeBands,
+  listUtilityCategories,
+  listUtilityDocs,
+} from '../../lib/api'
 import CalendarScreen from './CalendarScreen'
-import UtilityArticleOverlay from './UtilityArticleOverlay'
+import ContactsScreen from './ContactsScreen'
+import CredentialsScreen from './CredentialsScreen'
+import LibraryScreen from './LibraryScreen'
+import MeetingsScreen from './MeetingsScreen'
 import TeamOverlay from '../admin/TeamOverlay'
+import Sheet from '../../components/Sheet'
 import AreasEditor from '../../components/AreasEditor'
 import IncidenciaTypesEditor from '../../components/IncidenciaTypesEditor'
 import TimeBandsEditor from '../schedule/TimeBandsEditor'
-import { Search, Chevron, Plus, User, MapPin, Alert, Clock, Calendar } from '../../components/icons'
+import {
+  audienceRoles,
+  canSeeClubItem,
+  categoryForModule,
+  CLUB_MODULES,
+  clubItem,
+  isArchived,
+  matchesClubQuery,
+  moduleVisibleToRole,
+} from './clubContent'
+import {
+  Alert,
+  Book,
+  Calendar,
+  Chat,
+  Chevron,
+  Clock,
+  Key,
+  MapPin,
+  Search,
+  Settings,
+  User,
+} from '../../components/icons'
 
-// Tile grande del launcher: caja de icono + título (2 líneas) + subtítulo.
-function Tile({ icon: Icon, title, subtitle, onClick, dashed = false }) {
+const MODULE_ICONS = { Book, Alert, User, Chat, Key }
+
+function ModuleTile({ module, count, onClick }) {
+  const Icon = MODULE_ICONS[module.icon] || Book
+  const unit = {
+    manuals: count === 1 ? 'contenido' : 'contenidos',
+    policies: count === 1 ? 'política' : 'políticas',
+    contacts: count === 1 ? 'contacto' : 'contactos',
+    meetings: count === 1 ? 'acta' : 'actas',
+    credentials: count === 1 ? 'acceso' : 'accesos',
+  }[module.key]
+
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`flex min-h-[124px] flex-col items-start gap-3 rounded-xl2 p-4 text-left transition active:scale-[0.97] ${
-        dashed
-          ? 'border-2 border-dashed border-ink/15 text-ink/50'
-          : 'card-line bg-white shadow-card'
-      }`}
+      className="card-line flex min-h-[116px] flex-col items-start gap-3 rounded-xl2 bg-white p-4 text-left shadow-card transition active:scale-[0.97]"
     >
-      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${dashed ? 'bg-ink/[0.04] text-ink/40' : 'bg-bronze/12 text-bronze-dark'}`}>
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-bronze/12 text-bronze-dark">
         <Icon size={24} />
       </span>
       <span className="min-w-0">
-        <span className="block font-display text-card font-bold leading-tight text-ink">{title}</span>
-        {subtitle && <span className="mt-0.5 block text-xs text-ink/45">{subtitle}</span>}
+        <span className="block font-display text-card font-bold leading-tight text-ink">{module.title}</span>
+        <span className="mt-0.5 block text-xs text-ink/45">{count} {unit}</span>
       </span>
     </button>
   )
 }
 
-// Sección de gestión (solo admin). Sus hooks (franjas) solo se montan aquí.
-function GestionGrid() {
+function ManagementRow({ icon: Icon, title, subtitle, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-[64px] w-full items-center gap-3 rounded-2xl px-3 text-left active:bg-ink/[0.04]"
+    >
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-bronze/12 text-bronze-dark">
+        <Icon size={20} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-bold text-ink">{title}</span>
+        <span className="block text-sm text-ink/45">{subtitle}</span>
+      </span>
+      <Chevron size={18} className="shrink-0 text-ink/25" />
+    </button>
+  )
+}
+
+function ManagementLauncher() {
   const toast = useToast()
   const bands = useData(listTimeBands, [])
+  const [open, setOpen] = useState(false)
   const [team, setTeam] = useState(false)
   const [areas, setAreas] = useState(false)
   const [tags, setTags] = useState(false)
   const [bandsOpen, setBandsOpen] = useState(false)
 
   return (
-    <div className="space-y-2">
-      <p className="px-1 text-[11px] font-bold uppercase tracking-wide text-ink/40">Gestión</p>
-      <div className="grid grid-cols-2 gap-3">
-        <Tile icon={User} title="Equipo" subtitle="Perfiles del equipo" onClick={() => setTeam(true)} />
-        <Tile icon={MapPin} title="Áreas y zonas" subtitle="Locales de incidencias" onClick={() => setAreas(true)} />
-        <Tile icon={Alert} title="Etiquetas" subtitle="Tipos de incidencia" onClick={() => setTags(true)} />
-        <Tile icon={Clock} title="Franjas del gym" subtitle="Filas del cuadrante" onClick={() => setBandsOpen(true)} />
-      </div>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex min-h-[64px] w-full items-center gap-3 rounded-xl2 border border-ink/10 bg-white px-4 text-left shadow-card active:scale-[0.98]"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink text-white">
+          <Settings size={20} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-display text-card font-bold text-ink">Gestión del club</span>
+          <span className="block text-sm text-ink/45">Equipo, espacios y configuración</span>
+        </span>
+        <Chevron size={19} className="shrink-0 text-ink/25" />
+      </button>
+
+      <Sheet open={open} onClose={() => setOpen(false)} title="Gestión del club">
+        <div className="divide-y divide-ink/[0.06] pb-2">
+          <ManagementRow icon={User} title="Equipo" subtitle="Perfiles, fichajes y geocerca" onClick={() => { setOpen(false); setTeam(true) }} />
+          <ManagementRow icon={MapPin} title="Áreas y zonas" subtitle="Espacios usados en incidencias" onClick={() => { setOpen(false); setAreas(true) }} />
+          <ManagementRow icon={Alert} title="Etiquetas de incidencia" subtitle="Tipos para clasificar reportes" onClick={() => { setOpen(false); setTags(true) }} />
+          <ManagementRow icon={Clock} title="Franjas del gimnasio" subtitle="Filas del cuadrante semanal" onClick={() => { setOpen(false); setBandsOpen(true) }} />
+        </div>
+      </Sheet>
 
       {team && <TeamOverlay onClose={() => setTeam(false)} />}
       <AreasEditor open={areas} onClose={() => setAreas(false)} />
@@ -65,164 +135,215 @@ function GestionGrid() {
         onChanged={() => bands.reload(true)}
         toast={toast}
       />
-    </div>
+    </>
   )
 }
 
-// ============================================================================
-// Club: launcher de tiles (una por categoría de documentos) + gestión del admin.
-// Los documentos viven en Supabase (utility_categories / utility_docs). Vive
-// FUERA del GeoGate: es consulta, se lee también desde casa.
-// ============================================================================
+function usableItem(item, employee) {
+  if (isArchived(item) || !canSeeClubItem(item, employee)) return false
+  if (item.payload.status === 'draft' && employee.role !== 'admin') return false
+  if (item.payload.kind === 'legacy-contact-list') return false
+  if (item.payload.kind === 'legacy-credential-list') return false
+  return true
+}
+
 export default function ClubScreen({ employee }) {
+  const toast = useToast()
   const isAdmin = employee?.role === 'admin'
-  const cats = useData(listUtilityCategories, [])
+  const categoriesData = useData(listUtilityCategories, [])
   const docsData = useData(listUtilityDocs, [])
   const [query, setQuery] = useState('')
-  const [openCat, setOpenCat] = useState(null)   // categoría abierta (overlay)
-  const [reading, setReading] = useState(null)    // doc en lectura desde búsqueda
-  const [newCat, setNewCat] = useState(false)
-  const [calendar, setCalendar] = useState(false) // calendario anual (overlay)
+  const [openModule, setOpenModule] = useState(null)
+  const [openItemId, setOpenItemId] = useState(null)
+  const [calendar, setCalendar] = useState(false)
 
-  const categories = cats.data || []
-  const allDocs = docsData.data || []
-  const loading = cats.loading || docsData.loading
+  const categories = categoriesData.data || []
+  const docs = docsData.data || []
+  const loading = categoriesData.loading || docsData.loading
+  const modules = CLUB_MODULES.filter((module) => moduleVisibleToRole(module.key, employee?.role))
+
+  const docsByModule = useMemo(() => {
+    const result = Object.fromEntries(CLUB_MODULES.map((module) => [module.key, []]))
+    for (const module of CLUB_MODULES) {
+      const category = categoryForModule(categories, module.key)
+      if (!category) continue
+      result[module.key] = docs
+        .filter((doc) => doc.category_id === category.id)
+        .map((doc) => clubItem(doc, module.key))
+    }
+    return result
+  }, [categories, docs])
+
+  const searchResults = useMemo(() => {
+    if (!query.trim()) return []
+    return modules.flatMap((module) =>
+      (docsByModule[module.key] || [])
+        .filter((item) => usableItem(item, employee))
+        .filter((item) => matchesClubQuery(item, query))
+        .map((item) => ({ item, module })),
+    )
+  }, [docsByModule, employee, modules, query])
 
   function reloadAll() {
-    cats.reload(true)
-    docsData.reload(true)
+    return Promise.all([categoriesData.reload(true), docsData.reload(true)])
   }
 
-  const catById = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories])
-
-  // Docs por categoría (todos; el filtrado por rol se hace al mostrar/contar).
-  const docsByCat = useMemo(() => {
-    const map = {}
-    for (const d of allDocs) (map[d.category_id] ||= []).push(d)
-    return map
-  }, [allDocs])
-
-  // Nº de documentos visibles para este empleado por categoría.
-  function visibleCount(catId) {
-    return (docsByCat[catId] || []).filter((d) => canSeeDoc(d, employee)).length
+  function countFor(moduleKey) {
+    return (docsByModule[moduleKey] || []).filter((item) => usableItem(item, employee)).length
   }
 
-  // Resultados de búsqueda: docs visibles que matchean título/cuerpo.
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return []
-    return allDocs
-      .filter((d) => canSeeDoc(d, employee))
-      .filter((d) =>
-        d.title.toLowerCase().includes(q) ||
-        (d.body || '').toLowerCase().includes(q) ||
-        (catById[d.category_id]?.name || '').toLowerCase().includes(q))
-  }, [query, allDocs, employee, catById])
+  async function notifyPublication({ title, isNew, visibleRoles, changeNote, moduleKey }) {
+    const module = CLUB_MODULES.find((entry) => entry.key === moduleKey)
+    try {
+      await createClubNotification({
+        employee,
+        title: `${isNew ? 'Nuevo' : 'Actualizado'}: ${title}`,
+        body: changeNote || `${module?.title || 'Contenido del Club'} disponible en El club.`,
+        targetRoles: audienceRoles(visibleRoles),
+      })
+    } catch {
+      toast('Contenido guardado, pero no se pudo crear el aviso', 'error')
+    }
+  }
+
+  const selectedModule = CLUB_MODULES.find((module) => module.key === openModule)
+  const selectedCategory = selectedModule
+    ? categoryForModule(categories, selectedModule.key)
+    : null
+  const selectedDocs = selectedModule
+    ? docs.filter((doc) => doc.category_id === selectedCategory?.id)
+    : []
 
   return (
-    <div className="space-y-4 pb-24">
-      {/* Buscador global */}
-      <div className="relative">
-        <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/35" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar manuales, políticas, accesos…"
-          className="w-full rounded-2xl border border-ink/10 bg-white py-3 pl-11 pr-4 text-base outline-none focus:border-bronze"
-        />
+    <div className="space-y-5 pb-24">
+      <div>
+        <label htmlFor="club-search" className="mb-1.5 block px-1 text-xs font-bold text-ink/50">
+          Buscar en El club
+        </label>
+        <div className="relative">
+          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/35" />
+          <input
+            id="club-search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Contactos, manuales o políticas"
+            className="field !pl-11"
+          />
+        </div>
       </div>
 
       {loading ? (
         <SkeletonList rows={4} />
       ) : query.trim() ? (
-        /* Resultados de búsqueda */
-        results.length === 0 ? (
-          <p className="px-1 py-8 text-center text-sm text-ink/45">Sin resultados. Prueba con otra búsqueda.</p>
-        ) : (
+        searchResults.length ? (
           <Card className="divide-y divide-ink/[0.06] overflow-hidden">
-            {results.map((d) => (
+            {searchResults.map(({ item, module }) => (
               <button
-                key={d.id}
-                onClick={() => setReading(d)}
-                className="flex min-h-[56px] w-full items-center gap-3 px-4 py-3 text-left transition active:bg-ink/[0.03]"
+                type="button"
+                key={item.id}
+                onClick={() => {
+                  setOpenItemId(item.id)
+                  setOpenModule(module.key)
+                  setQuery('')
+                }}
+                className="flex min-h-[64px] w-full items-center gap-3 px-4 py-3 text-left active:bg-ink/[0.03]"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block font-semibold text-ink">{d.title}</span>
-                  <span className="block truncate text-xs text-ink/40">{catById[d.category_id]?.name || 'Documento'}</span>
+                  <span className="block font-bold text-ink">{item.title}</span>
+                  <span className="block text-xs text-ink/40">{module.title}</span>
                 </span>
                 <Chevron size={18} className="shrink-0 text-ink/25" />
               </button>
             ))}
           </Card>
+        ) : (
+          <EmptyState icon={Search} title={`No hay resultados para “${query.trim()}”`} />
         )
       ) : (
-        /* Launcher: calendario + grid de categorías */
-        <div className="space-y-6">
-          {/* Acceso destacado al calendario anual (festividades y horarios del gym) */}
+        <>
           <button
+            type="button"
             onClick={() => setCalendar(true)}
-            className="flex w-full items-center gap-4 rounded-xl2 bg-ink p-4 text-left text-white shadow-card transition active:scale-[0.98]"
+            className="flex min-h-[80px] w-full items-center gap-4 rounded-xl2 bg-ink p-4 text-left text-white shadow-card active:scale-[0.98]"
           >
             <span className="brand-glow flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10">
               <Calendar size={24} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block font-display text-card font-bold leading-tight">Calendario anual</span>
-              <span className="mt-0.5 block text-xs text-white/55">Festividades y horarios del gimnasio</span>
+              <span className="block font-display text-card font-bold">Calendario anual</span>
+              <span className="mt-0.5 block text-xs text-white/55">Festividades y horarios especiales</span>
             </span>
             <Chevron size={20} className="shrink-0 text-white/40" />
           </button>
 
-          <div className="grid grid-cols-2 gap-3">
-            {categories.map((c) => {
-              const n = visibleCount(c.id)
-              return (
-                <Tile
-                  key={c.id}
-                  icon={categoryIcon(c.icon)}
-                  title={c.name}
-                  subtitle={`${n} ${n === 1 ? 'documento' : 'documentos'}`}
-                  onClick={() => setOpenCat(c)}
+          <section aria-labelledby="club-sections-title">
+            <p id="club-sections-title" className="mb-2 px-1 text-xs font-bold uppercase text-ink/40">
+              Información del club
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {modules.map((module) => (
+                <ModuleTile
+                  key={module.key}
+                  module={module}
+                  count={countFor(module.key)}
+                  onClick={() => {
+                    setOpenItemId(null)
+                    setOpenModule(module.key)
+                  }}
                 />
-              )
-            })}
-            {isAdmin && (
-              <Tile icon={Plus} title="Nueva categoría" dashed onClick={() => setNewCat(true)} />
-            )}
-          </div>
+              ))}
+            </div>
+          </section>
 
-          {isAdmin && <GestionGrid />}
-        </div>
+          {isAdmin && <ManagementLauncher />}
+        </>
       )}
-
-      {openCat && (
-        <CategoryScreen
-          category={catById[openCat.id] || openCat}
-          docs={docsByCat[openCat.id] || []}
-          employee={employee}
-          onClose={() => setOpenCat(null)}
-          onReload={reloadAll}
-        />
-      )}
-
-      {reading && (
-        <UtilityArticleOverlay
-          doc={reading}
-          categoryName={catById[reading.category_id]?.name}
-          employee={employee}
-          onClose={() => setReading(null)}
-          onReload={reloadAll}
-        />
-      )}
-
-      <CategorySheet
-        open={newCat}
-        position={categories.length}
-        onClose={() => setNewCat(false)}
-        onSaved={reloadAll}
-      />
 
       {calendar && <CalendarScreen employee={employee} onClose={() => setCalendar(false)} />}
+
+      {selectedModule?.key === 'contacts' && selectedCategory && (
+        <ContactsScreen
+          category={selectedCategory}
+          docs={selectedDocs}
+          employee={employee}
+          onClose={() => { setOpenModule(null); setOpenItemId(null) }}
+          onReload={reloadAll}
+        />
+      )}
+      {selectedModule?.key === 'meetings' && selectedCategory && (
+        <MeetingsScreen
+          category={selectedCategory}
+          docs={selectedDocs}
+          employee={employee}
+          initialItemId={openItemId}
+          onClose={() => { setOpenModule(null); setOpenItemId(null) }}
+          onReload={reloadAll}
+        />
+      )}
+      {(selectedModule?.key === 'manuals' || selectedModule?.key === 'policies') && selectedCategory && (
+        <LibraryScreen
+          moduleKey={selectedModule.key}
+          category={selectedCategory}
+          docs={selectedDocs}
+          employee={employee}
+          initialItemId={openItemId}
+          onClose={() => { setOpenModule(null); setOpenItemId(null) }}
+          onReload={reloadAll}
+          onPublished={(payload) => notifyPublication({
+            ...payload,
+            moduleKey: selectedModule.key,
+          })}
+        />
+      )}
+      {selectedModule?.key === 'credentials' && selectedCategory && (
+        <CredentialsScreen
+          category={selectedCategory}
+          docs={selectedDocs}
+          employee={employee}
+          onClose={() => { setOpenModule(null); setOpenItemId(null) }}
+          onReload={reloadAll}
+        />
+      )}
     </div>
   )
 }

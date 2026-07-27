@@ -25,7 +25,11 @@ const firstName = (name) => (name || '').split(' ')[0]
 // destacado. El marcado como leído NO ocurre aquí: lo hace useAnnouncements
 // al abrir la pestaña.
 // ============================================================================
-export default function AnnouncementDetailCard({ a, stat, past = false, comments = [], employee, empById, onSend }) {
+export default function AnnouncementDetailCard({
+  a, stat, past = false, isNew = false, defaultOpen = false,
+  comments = [], employee, empById, onSend, onOpen,
+}) {
+  const [open, setOpen] = useState(defaultOpen)
   const [readsOpen, setReadsOpen] = useState(false)
   const fromPeer = a.created_by_role && a.created_by_role !== 'admin'
   const high = a.priority === 'high'
@@ -41,9 +45,20 @@ export default function AnnouncementDetailCard({ a, stat, past = false, comments
     <div
       className={`overflow-hidden rounded-xl2 ${
         fromPeer ? 'border border-ink/[0.07] bg-sand-50' : 'card-line bg-white shadow-card'
-      } ${high && !past ? 'border-l-4 border-l-bronze' : ''} ${past ? 'opacity-60' : ''}`}
+      } ${high && !past ? 'border-l-4 border-l-bronze' : ''} ${past ? 'bg-ink/[0.025]' : ''}`}
     >
-      <div className="flex items-start gap-3 p-4 pb-3">
+      <button
+        type="button"
+        onClick={() => {
+          haptic('tap')
+          setOpen((value) => {
+            if (!value) onOpen?.()
+            return !value
+          })
+        }}
+        aria-expanded={open}
+        className="flex min-h-[72px] w-full items-start gap-3 p-4 text-left active:bg-ink/[0.025]"
+      >
         <div
           className={`flex shrink-0 items-center justify-center rounded-xl ${
             fromPeer ? 'h-8 w-8 bg-ink/5 text-ink/45' : 'h-9 w-9 bg-bronze/12 text-bronze-dark'
@@ -52,15 +67,25 @@ export default function AnnouncementDetailCard({ a, stat, past = false, comments
           <Megaphone size={fromPeer ? 15 : 18} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className={`leading-tight ${fromPeer ? 'font-semibold text-ink/80' : 'font-display text-card font-bold text-ink'}`}>
-            {a.title}
-          </p>
-          {a.body && <p className={`mt-0.5 text-sm leading-snug ${fromPeer ? 'text-ink/55' : 'text-ink/60'}`}>{a.body}</p>}
+          <span className="flex items-start gap-2">
+            <span className={`min-w-0 flex-1 leading-tight ${fromPeer ? 'font-semibold text-ink/80' : 'font-display text-card font-bold text-ink'}`}>
+              {a.title}
+            </span>
+            {isNew && <span className="shrink-0 rounded-full bg-terracotta/12 px-2 py-0.5 text-[11px] font-bold text-terracotta">Nuevo</span>}
+          </span>
           <p className="mt-1.5 flex items-center gap-1 text-xs text-ink/40">
             <User size={11} className="shrink-0" /> {infoLine}
           </p>
+          <span className="mt-1.5 flex items-center gap-1 text-xs font-bold text-bronze-dark">
+            {open ? 'Ocultar aviso' : 'Ver aviso'}
+            <ChevronDown size={15} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+          </span>
         </div>
-      </div>
+      </button>
+
+      {open && (
+        <div className="animate-rise-in border-t border-ink/[0.06]">
+          {a.body && <p className={`px-4 py-3 text-sm leading-relaxed ${fromPeer ? 'text-ink/60' : 'text-ink/70'}`}>{a.body}</p>}
 
       {/* Acuse de lectura: todos ven quién lo ha leído y a quién le falta */}
       {stat.total > 0 && (
@@ -117,6 +142,8 @@ export default function AnnouncementDetailCard({ a, stat, past = false, comments
         readOnly={past || !onSend}
         tone={fromPeer ? 'sand' : 'white'}
       />
+        </div>
+      )}
     </div>
   )
 }

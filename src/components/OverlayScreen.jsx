@@ -8,7 +8,7 @@ import { useLockBody } from './ui'
 export default function OverlayScreen({ title, onClose, footer, children }) {
   useLockBody(false) // el overlay scrollea por sí mismo; el body queda debajo
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-sand">
+    <div className="fixed inset-0 z-50 !m-0 flex h-dvh flex-col bg-sand">
       <header className="z-10 shrink-0 bg-ink px-5 pb-4 pt-safe text-white shadow-pop">
         <div className="flex items-center justify-between pt-4">
           <button

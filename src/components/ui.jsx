@@ -78,13 +78,13 @@ export function ConfirmSheet({ open, onClose, onConfirm, title, message, confirm
       <div className="flex gap-3 pb-2">
         <button
           onClick={onClose}
-          className="flex-1 rounded-2xl bg-ink/5 py-3.5 font-bold text-ink/70 transition-enter active:scale-95"
+          className="min-h-[50px] flex-1 rounded-2xl bg-ink/5 px-4 font-bold text-ink/70 transition-enter active:scale-95"
         >
           Cancelar
         </button>
         <button
           onClick={() => { onConfirm(); onClose() }}
-          className={`flex-1 rounded-2xl py-3.5 font-extrabold transition-enter active:scale-95 ${tones[tone]}`}
+          className={`min-h-[50px] flex-1 rounded-2xl px-4 font-extrabold transition-enter active:scale-95 ${tones[tone]}`}
         >
           {confirmLabel}
         </button>

@@ -97,10 +97,10 @@ export default function TimeEntriesEditor({ open, onClose, employee }) {
       <div className="rounded-2xl bg-ink/[0.04] p-3">
         <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-ink/40"><Clock size={13} /> Añadir fichaje</p>
         <div className="flex items-center gap-2">
-          <select value={newKind} onChange={(e) => setNewKind(e.target.value)} className="flex-1 rounded-xl bg-white px-2.5 py-2 text-sm font-semibold text-ink ring-1 ring-ink/[0.06]">
+          <select value={newKind} onChange={(e) => setNewKind(e.target.value)} className="min-h-[44px] flex-1 rounded-xl bg-white px-2.5 text-base font-semibold text-ink ring-1 ring-ink/[0.06]">
             {KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
           </select>
-          <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="w-24 rounded-xl bg-white px-2 py-2 text-sm font-semibold text-ink ring-1 ring-ink/[0.06]" />
+          <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="min-h-[44px] w-28 rounded-xl bg-white px-2 text-base font-semibold text-ink ring-1 ring-ink/[0.06]" />
           <button onClick={add} aria-label="Añadir" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink text-white active:scale-90">
             <Plus size={18} />
           </button>

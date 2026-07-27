@@ -164,7 +164,7 @@ export default function RecurringTaskSheet({ open, onClose, employee, target = '
 
       <div className="mb-1.5 flex items-center justify-between">
         <label className="block text-xs font-bold uppercase tracking-wide text-ink/40">¿En qué meses?</label>
-        <button onClick={toggleAll} className={`rounded-full px-3 py-1 text-xs font-bold transition active:scale-95 ${allOn ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/55'}`}>
+        <button onClick={toggleAll} className={`min-h-[44px] rounded-full px-3 text-xs font-bold transition active:scale-95 ${allOn ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/55'}`}>
           Todos los meses
         </button>
       </div>
@@ -173,7 +173,7 @@ export default function RecurringTaskSheet({ open, onClose, employee, target = '
           const on = draft.months.includes(m.v)
           return (
             <button key={m.v} onClick={() => toggleMonth(m.v)}
-              className={`rounded-xl py-2 text-sm font-bold transition active:scale-90 ${on ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/50'}`}>
+              className={`min-h-[44px] rounded-xl px-2 text-sm font-bold transition active:scale-90 ${on ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/50'}`}>
               {m.l}
             </button>
           )

@@ -37,7 +37,7 @@ function AdjustRow({ shift, onChanged, toast }) {
       <div className="flex flex-wrap gap-1.5">
         {PUESTOS.map((p) => (
           <button key={p} onClick={() => setPuesto(puesto === p ? null : p)}
-            className={`min-h-[40px] rounded-full px-3.5 text-sm font-semibold transition active:scale-95 ${puesto === p ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/60'}`}>
+            className={`min-h-[44px] rounded-full px-3.5 text-sm font-semibold transition active:scale-95 ${puesto === p ? 'bg-bronze text-white' : 'bg-ink/5 text-ink/60'}`}>
             {p}
           </button>
         ))}

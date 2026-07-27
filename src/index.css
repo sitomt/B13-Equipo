@@ -27,6 +27,12 @@
   button {
     -webkit-user-select: none;
     user-select: none;
+    touch-action: manipulation;
+  }
+  input,
+  textarea,
+  select {
+    font-size: 16px;
   }
   /* Foco visible accesible para navegación por teclado (skill §1 focus-states).
      El tap-highlight sigue transparente; el anillo solo aparece con :focus-visible. */
@@ -64,6 +70,12 @@
   .field:focus {
     @apply border-bronze bg-white;
     box-shadow: 0 0 0 3px rgba(185, 138, 94, 0.16);
+  }
+  .field-label {
+    @apply mb-1.5 block px-1 text-[11px] font-bold uppercase text-ink/45;
+  }
+  .field-error {
+    @apply mt-1.5 block px-1 text-xs font-semibold text-terracotta;
   }
 }
 

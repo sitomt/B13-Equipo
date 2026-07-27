@@ -103,14 +103,14 @@ export default function CategoryScreen({ category, docs, employee, onClose, onRe
                       <button
                         onClick={() => { haptic('tap'); setEditorDoc(d) }}
                         aria-label="Editar"
-                        className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink/5 text-ink/60 active:scale-90"
+                        className="flex h-11 w-11 items-center justify-center rounded-xl bg-ink/5 text-ink/60 active:scale-90"
                       >
                         <Pencil size={17} />
                       </button>
                       <button
                         onClick={() => { haptic('tap'); setConfirmDoc(d) }}
                         aria-label="Borrar"
-                        className="flex h-10 w-10 items-center justify-center rounded-xl bg-terracotta/10 text-terracotta active:scale-90"
+                        className="flex h-11 w-11 items-center justify-center rounded-xl bg-terracotta/10 text-terracotta active:scale-90"
                       >
                         <Trash size={17} />
                       </button>

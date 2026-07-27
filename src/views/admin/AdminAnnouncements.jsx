@@ -21,10 +21,25 @@ export default function AdminAnnouncements({ store }) {
   const staff = useData(listEmployees, [])
   const [showPast, setShowPast] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [openIds, setOpenIds] = useState(() => new Set())
 
-  // Al abrir la vista, la conversación queda como vista (badge del navbar).
+  // La conversación se considera vista al entrar, pero cada aviso se marca
+  // como leído únicamente cuando se despliega.
   const markCommentsSeen = store?.markCommentsSeen
-  useEffect(() => { markCommentsSeen?.() }, [markCommentsSeen])
+  useEffect(() => {
+    markCommentsSeen?.()
+  }, [markCommentsSeen])
+
+  function toggleAnnouncement(a) {
+    const opening = !openIds.has(a.id)
+    setOpenIds((current) => {
+      const next = new Set(current)
+      if (opening) next.add(a.id)
+      else next.delete(a.id)
+      return next
+    })
+    if (opening) store?.markOneRead?.(a)
+  }
 
   // Para cada aviso: cuántos de su público objetivo lo han leído.
   const readsByAnn = new Map()
@@ -80,24 +95,43 @@ export default function AdminAnnouncements({ store }) {
               const st = readStat(a)
               const allRead = st.total > 0 && st.read.length === st.total
               const high = a.priority === 'high'
+              const open = openIds.has(a.id)
               return (
                 <Card key={a.id} className={`p-3.5 ${high ? 'border-l-4 border-l-bronze' : ''}`}>
                   <div className="flex items-start gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-ink">{a.title}</p>
+                    <button
+                      type="button"
+                      onClick={() => toggleAnnouncement(a)}
+                      aria-expanded={open}
+                      className="flex min-h-[44px] min-w-0 flex-1 items-start gap-2 text-left"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-semibold text-ink">{a.title}</span>
                       {/* Destino y vigencia son información: texto plano */}
-                      <p className="mt-0.5 text-xs text-ink/40">
+                        <span className="mt-0.5 block text-xs text-ink/40">
                         {high && <span className="font-bold text-bronze-dark">Destacado · </span>}
                         {a.target_roles.join(', ')} · hasta {a.ends_on}
-                      </p>
-                    </div>
+                        </span>
+                      </span>
+                      <ChevronDown
+                        size={17}
+                        className={`mt-1 shrink-0 text-ink/30 transition-transform ${open ? 'rotate-180' : ''}`}
+                      />
+                    </button>
                     <button onClick={() => deactivate(a)} className="flex min-h-[44px] shrink-0 items-center rounded-full bg-ink/5 px-3.5 text-xs font-semibold text-ink/60 active:scale-95">
                       Archivar
                     </button>
                   </div>
-                  {/* Acuse de lectura */}
-                  {st.total > 0 && (
-                    <div className="mt-2 border-t border-ink/[0.06] pt-2">
+                  {open && (
+                    <div className="mt-2 border-t border-ink/[0.06] pt-3">
+                      {a.body && (
+                        <p className="mb-3 whitespace-pre-wrap text-sm leading-relaxed text-ink/70">
+                          {a.body}
+                        </p>
+                      )}
+                      {/* Acuse de lectura */}
+                      {st.total > 0 && (
+                        <div>
                       <div className="flex items-center gap-2">
                         <span className={`tabular flex items-center gap-1 text-xs font-bold ${allRead ? 'text-sage' : 'text-ink/50'}`}>
                           {allRead && <Check size={13} />}
@@ -116,17 +150,19 @@ export default function AdminAnnouncements({ store }) {
                       {!allRead && st.pending.length > 0 && (
                         <p className="mt-1.5 text-xs text-ink/45">Falta: {st.pending.map((e) => e.name.split(' ')[0]).join(', ')}</p>
                       )}
-                    </div>
-                  )}
-                  {/* Conversación bajo el aviso */}
-                  {store && (
-                    <div className="-mx-3.5 -mb-3.5 mt-2.5">
-                      <CommentThread
-                        comments={store.commentsFor(a)}
-                        employee={employee}
-                        empById={store.empById}
-                        onSend={(body) => store.addComment(a, body)}
-                      />
+                        </div>
+                      )}
+                      {/* Conversación bajo el aviso */}
+                      {store && (
+                        <div className="-mx-3.5 -mb-3.5 mt-2.5">
+                          <CommentThread
+                            comments={store.commentsFor(a)}
+                            employee={employee}
+                            empById={store.empById}
+                            onSend={(body) => store.addComment(a, body)}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </Card>

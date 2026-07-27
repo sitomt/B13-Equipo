@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { addTimeEntry, deriveStatus, todayEntries, getGeofence } from '../lib/api'
+import { addTimeEntry, deriveStatus, todayEntries, getGeofence, KIND_LABEL } from '../lib/api'
 import { useData } from '../lib/useData'
 import { timeHM } from '../lib/date'
 import { fmtMinutes, workedMinutesForDay } from '../lib/hours'
@@ -15,6 +15,15 @@ const STATUS_META = {
   working: { label: 'En turno', color: 'text-sage', dot: 'bg-sage' },
   break: { label: 'En pausa', color: 'text-ochre', dot: 'bg-ochre' },
   meal: { label: 'En comida', color: 'text-stone', dot: 'bg-stone' },
+}
+
+const EVENT_META = {
+  clock_in: { dot: 'bg-sage', icon: Power },
+  clock_out: { dot: 'bg-terracotta', icon: LogOut },
+  break_start: { dot: 'bg-ochre', icon: Coffee },
+  break_end: { dot: 'bg-sage', icon: Power },
+  meal_start: { dot: 'bg-stone', icon: Utensils },
+  meal_end: { dot: 'bg-sage', icon: Power },
 }
 
 // Cronómetro en vivo del turno (HH:MM:SS), descontando pausas/comidas como en hours.js.
@@ -56,11 +65,71 @@ function ActionBtn({ icon: Icon, label, onClick, tone = 'ink', disabled }) {
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-3 text-[13px] font-bold transition active:scale-95 disabled:opacity-50 ${tones[tone]}`}
+      className={`flex min-h-[72px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 text-[13px] font-bold transition active:scale-95 disabled:opacity-50 ${tones[tone]}`}
     >
       <Icon size={22} />
       {label}
     </button>
+  )
+}
+
+function ShiftDetail({ entries = [], live, status, now }) {
+  const sorted = [...entries].sort((a, b) => new Date(a.occurred_at) - new Date(b.occurred_at))
+  const firstIn = sorted.find((e) => e.kind === 'clock_in')
+  const lastOut = [...sorted].reverse().find((e) => e.kind === 'clock_out')
+  const total = live ? fmtClock(elapsedMs(sorted, now)) : fmtMinutes(workedMinutesForDay(sorted, now))
+  const endLabel = live
+    ? status === 'break' ? 'En pausa' : status === 'meal' ? 'En comida' : 'En curso'
+    : lastOut ? timeHM(lastOut.occurred_at) : 'Sin salida'
+
+  return (
+    <div>
+      <div className="grid grid-cols-3 divide-x divide-ink/[0.08] rounded-2xl bg-white px-2 py-3 ring-1 ring-ink/[0.06]">
+        <div className="px-2 text-center">
+          <p className="text-xs font-semibold text-ink/40">Entrada</p>
+          <p className="tabular mt-0.5 font-display text-xl font-extrabold text-ink">{firstIn ? timeHM(firstIn.occurred_at) : '—'}</p>
+        </div>
+        <div className="px-2 text-center">
+          <p className="text-xs font-semibold text-ink/40">{live ? 'Estado' : 'Salida'}</p>
+          <p className={`tabular mt-0.5 font-display text-xl font-extrabold ${live ? 'text-sage' : 'text-ink'}`}>{endLabel}</p>
+        </div>
+        <div className="px-2 text-center">
+          <p className="text-xs font-semibold text-ink/40">Trabajado</p>
+          <p className="tabular mt-0.5 font-display text-xl font-extrabold text-ink">{total}</p>
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <p className="mb-2 px-1 text-xs font-bold uppercase text-ink/40">Cronología de hoy</p>
+        <div className="rounded-2xl bg-white px-4 py-2 ring-1 ring-ink/[0.06]">
+          {sorted.map((entry, index) => {
+            const event = EVENT_META[entry.kind] || { dot: 'bg-ink/25', icon: Clock }
+            const Icon = event.icon
+            return (
+              <div key={entry.id || `${entry.kind}-${entry.occurred_at}`} className="flex gap-3">
+                <div className="flex flex-col items-center">
+                  <span className={`mt-3 flex h-8 w-8 items-center justify-center rounded-full text-white ${event.dot}`}>
+                    <Icon size={15} />
+                  </span>
+                  {index < sorted.length - 1 && <span className="w-px flex-1 bg-ink/10" />}
+                </div>
+                <div className="min-w-0 flex-1 py-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="font-semibold text-ink">{KIND_LABEL[entry.kind] || entry.kind}</p>
+                    <p className="tabular shrink-0 font-bold text-ink/60">{timeHM(entry.occurred_at)}</p>
+                  </div>
+                  {(entry.notes || entry.auto_closed || entry.inside === true) && (
+                    <p className="mt-0.5 text-sm text-ink/45">
+                      {entry.auto_closed ? 'Salida automática por alejamiento' : entry.notes || 'Ubicación del gimnasio verificada'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -182,6 +251,43 @@ export default function Fichaje({ employee, onChange }) {
     />
   )
 
+  const shiftSheet = (
+    <Sheet open={manageOpen} onClose={() => setManageOpen(false)} title="Jornada de hoy">
+      <ShiftDetail entries={entries || []} live={live} status={status} now={now} />
+
+      {live && (
+        <div className="mt-5 border-t border-ink/[0.08] pt-5">
+          <p className="mb-2 px-1 text-xs font-bold uppercase text-ink/40">Acciones</p>
+          {status === 'working' && (
+            <div className="flex gap-2 pb-2">
+              <ActionBtn icon={Coffee} label="Pausa" tone="ochre" onClick={() => { setManageOpen(false); act('break_start', 'Pausa iniciada') }} disabled={busy} />
+              <ActionBtn icon={Utensils} label="Comida" tone="stone" onClick={() => { setManageOpen(false); act('meal_start', 'Comida iniciada') }} disabled={busy} />
+              <ActionBtn icon={LogOut} label="Salir" tone="danger" onClick={() => { setManageOpen(false); setConfirmOut(true) }} disabled={busy} />
+            </div>
+          )}
+          {status === 'break' && (
+            <button
+              onClick={() => { setManageOpen(false); act('break_end', 'De vuelta al turno') }}
+              disabled={busy}
+              className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-ink px-4 text-lg font-extrabold text-white transition-enter active:scale-95 disabled:opacity-50"
+            >
+              <Power size={24} /> Terminar pausa
+            </button>
+          )}
+          {status === 'meal' && (
+            <button
+              onClick={() => { setManageOpen(false); act('meal_end', 'De vuelta al turno') }}
+              disabled={busy}
+              className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-ink px-4 text-lg font-extrabold text-white transition-enter active:scale-95 disabled:opacity-50"
+            >
+              <Power size={24} /> Terminar comida
+            </button>
+          )}
+        </div>
+      )}
+    </Sheet>
+  )
+
   // ── Turno activo: barra COMPRIMIDA. El fichaje ya está hecho; cede el
   // protagonismo al día y las acciones (pausa/comida/salir) viven en un sheet.
   if (live) {
@@ -189,6 +295,7 @@ export default function Fichaje({ employee, onChange }) {
       <>
         <button
           onClick={() => { haptic('tap'); setManageOpen(true) }}
+          aria-label={`${meta.label}. Ver jornada y acciones`}
           className="relative flex min-h-[56px] w-full items-center gap-3 overflow-hidden rounded-xl2 bg-ink px-4 text-left text-white shadow-card transition-enter active:scale-[0.98]"
         >
           <div className="brand-glow pointer-events-none absolute inset-0" aria-hidden="true" />
@@ -211,39 +318,7 @@ export default function Fichaje({ employee, onChange }) {
           </div>
         )}
 
-        <Sheet open={manageOpen} onClose={() => setManageOpen(false)} title="Tu fichaje">
-          <div className="mb-4 flex items-baseline gap-2">
-            <span className="tabular font-display text-4xl font-extrabold leading-none tracking-tight text-ink">{worked}</span>
-            <span className="text-xs font-semibold uppercase tracking-wide text-ink/40">
-              {status === 'break' ? 'pausa en curso' : status === 'meal' ? 'comida en curso' : 'en turno'}
-            </span>
-          </div>
-          {status === 'working' && (
-            <div className="flex gap-2 pb-2">
-              <ActionBtn icon={Coffee} label="Pausa" tone="ochre" onClick={() => { setManageOpen(false); act('break_start', 'Pausa iniciada') }} disabled={busy} />
-              <ActionBtn icon={Utensils} label="Comida" tone="stone" onClick={() => { setManageOpen(false); act('meal_start', 'Comida iniciada') }} disabled={busy} />
-              <ActionBtn icon={LogOut} label="Salir" tone="danger" onClick={() => { setManageOpen(false); setConfirmOut(true) }} disabled={busy} />
-            </div>
-          )}
-          {status === 'break' && (
-            <button
-              onClick={() => { setManageOpen(false); act('break_end', 'De vuelta al turno') }}
-              disabled={busy}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-4 text-lg font-extrabold text-white transition-enter active:scale-95 disabled:opacity-50"
-            >
-              <Power size={24} /> Terminar pausa
-            </button>
-          )}
-          {status === 'meal' && (
-            <button
-              onClick={() => { setManageOpen(false); act('meal_end', 'De vuelta al turno') }}
-              disabled={busy}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-4 text-lg font-extrabold text-white transition-enter active:scale-95 disabled:opacity-50"
-            >
-              <Power size={24} /> Terminar comida
-            </button>
-          )}
-        </Sheet>
+        {shiftSheet}
         {confirm}
       </>
     )
@@ -272,6 +347,16 @@ export default function Fichaje({ employee, onChange }) {
         </div>
       )}
 
+      {finished && (
+        <button
+          type="button"
+          onClick={() => { haptic('tap'); setManageOpen(true) }}
+          className="relative mb-2 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-white/10 px-4 font-bold text-white active:scale-[0.98]"
+        >
+          <Clock size={18} /> Ver jornada
+        </button>
+      )}
+
       <button
         onClick={clockIn}
         disabled={busy}
@@ -296,6 +381,7 @@ export default function Fichaje({ employee, onChange }) {
         </p>
       )}
 
+      {finished && shiftSheet}
       {confirm}
     </div>
   )

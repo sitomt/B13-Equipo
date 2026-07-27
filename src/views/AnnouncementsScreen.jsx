@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import AnnouncementDetailCard from '../components/AnnouncementDetailCard'
 import { CountBadge, SkeletonList, EmptyState } from '../components/ui'
 import SectionCard from '../components/SectionCard'
@@ -11,35 +11,75 @@ import { Megaphone, Clock } from '../components/icons'
 // badge del navbar comparta datos con esta pantalla).
 // ============================================================================
 export default function AnnouncementsScreen({ store, employee }) {
-  const { activos, anteriores, statFor, markActiveRead, loading, commentsFor, addComment, markCommentsSeen, empById } = store
+  const {
+    activos, anteriores, unreadAnnouncements, statFor, markOneRead, loading,
+    commentsFor, addComment, markCommentsSeen, empById,
+  } = store
+  const initialUnreadRef = useRef(null)
+  const [openedIds, setOpenedIds] = useState(() => new Set())
 
-  // Al abrir la pestaña se marcan como leídos los vigentes pendientes y la
-  // conversación como vista: el badge del navbar desaparece en vivo.
+  if (!loading && initialUnreadRef.current === null) {
+    initialUnreadRef.current = new Set(unreadAnnouncements.map((a) => a.id))
+  }
+
+  // La conversación sí queda vista al entrar. Cada aviso se marca de forma
+  // individual desde su tarjeta, cuando la persona abre el detalle.
   useEffect(() => {
-    if (!loading) { markActiveRead(); markCommentsSeen() }
-  }, [loading, markActiveRead, markCommentsSeen])
+    if (!loading) markCommentsSeen()
+  }, [loading, markCommentsSeen])
 
   if (loading) return <SkeletonList rows={3} />
+
+  const newIds = initialUnreadRef.current || new Set()
+  const nuevos = activos.filter((a) => newIds.has(a.id) && !openedIds.has(a.id))
+  const leidos = activos.filter((a) => !newIds.has(a.id) || openedIds.has(a.id))
+
+  function handleOpen(a) {
+    if (!newIds.has(a.id) || openedIds.has(a.id)) return
+    setOpenedIds((current) => new Set(current).add(a.id))
+    markOneRead(a).catch(() => {})
+  }
 
   return (
     <div className="space-y-5 pb-24">
       {activos.length === 0 ? (
         <EmptyState icon={Megaphone} title="Sin avisos activos" subtitle="Cuando haya un aviso para tu equipo aparecerá aquí." />
       ) : (
-        <div className="space-y-3">
-          {activos.map((a, i) => (
-            <div key={a.id} className="animate-rise-in" style={{ animationDelay: `${i * 35}ms` }}>
-              <AnnouncementDetailCard
-                a={a}
-                stat={statFor(a)}
-                comments={commentsFor(a)}
-                employee={employee}
-                empById={empById}
-                onSend={addComment}
-              />
-            </div>
-          ))}
-        </div>
+        <>
+          {nuevos.length > 0 && (
+            <section aria-labelledby="new-announcements-title">
+              <p id="new-announcements-title" className="mb-2 px-1 text-xs font-bold uppercase text-terracotta">
+                Nuevos para ti · {nuevos.length}
+              </p>
+              <div className="space-y-3">
+                {nuevos.map((a, i) => (
+                  <div key={a.id} className="animate-rise-in" style={{ animationDelay: `${i * 35}ms` }}>
+                    <AnnouncementDetailCard
+                      a={a} stat={statFor(a)} isNew onOpen={() => handleOpen(a)}
+                      comments={commentsFor(a)} employee={employee} empById={empById} onSend={addComment}
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+          {leidos.length > 0 && (
+            <section aria-labelledby="active-announcements-title">
+              <p id="active-announcements-title" className="mb-2 px-1 text-xs font-bold uppercase text-ink/45">
+                Activos leídos · {leidos.length}
+              </p>
+              <div className="space-y-3">
+                {leidos.map((a) => (
+                  <AnnouncementDetailCard
+                    key={a.id} a={a} stat={statFor(a)}
+                    onOpen={() => handleOpen(a)}
+                    comments={commentsFor(a)} employee={employee} empById={empById} onSend={addComment}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
 
       {anteriores.length > 0 && (

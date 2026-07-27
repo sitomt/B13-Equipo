@@ -52,7 +52,7 @@ export default function CoachView() {
           <ClubScreen employee={employee} />
         ) : (
           <GeoGate employee={employee}>
-            {tab === 'hoy' && <CoachToday anns={anns.activos} onOpenAnns={() => setTab('avisos')} />}
+            {tab === 'hoy' && <CoachToday anns={anns.unreadAnnouncements} onOpenAnns={() => setTab('avisos')} />}
             {tab === 'gym' && <CoachGym />}
           </GeoGate>
         )}

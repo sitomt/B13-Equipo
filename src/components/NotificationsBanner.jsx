@@ -58,9 +58,9 @@ export default function NotificationsBanner() {
       <button
         onClick={activate}
         disabled={busy}
-        className="shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-bold text-white transition active:scale-95 disabled:opacity-50"
+        className="min-h-[44px] shrink-0 rounded-full bg-ink px-4 text-xs font-bold text-white transition active:scale-95 disabled:opacity-50"
       >
-        Activar
+        {busy ? 'Activando…' : 'Activar'}
       </button>
       <button onClick={dismiss} aria-label="Descartar" className="flex h-11 w-11 shrink-0 items-center justify-center text-ink/30 active:scale-90">
         <X size={16} />

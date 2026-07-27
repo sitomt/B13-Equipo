@@ -106,7 +106,7 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
             key={c}
             onClick={() => setColor(c)}
             aria-label={`Color ${c}`}
-            className={`h-10 w-10 rounded-full transition active:scale-90 ${color === c ? 'ring-2 ring-ink ring-offset-2 ring-offset-sand-50' : ''}`}
+            className={`h-11 w-11 rounded-full transition active:scale-90 ${color === c ? 'ring-2 ring-ink ring-offset-2 ring-offset-sand-50' : ''}`}
             style={{ background: c }}
           />
         ))}
@@ -161,8 +161,8 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
         confirmPin ? (
           <div className="mt-3 flex items-center gap-2 rounded-2xl bg-terracotta/8 p-2">
             <span className="flex-1 px-2 text-sm font-semibold text-terracotta">¿Resetear su PIN?</span>
-            <button onClick={() => setConfirmPin(false)} className="rounded-xl bg-white px-3 py-2 text-sm font-bold text-ink/60 transition-enter active:scale-95">Cancelar</button>
-            <button onClick={resetPin} className="rounded-xl bg-terracotta px-3 py-2 text-sm font-extrabold text-white transition-enter active:scale-95">Resetear</button>
+            <button onClick={() => setConfirmPin(false)} className="min-h-[44px] rounded-xl bg-white px-3 text-sm font-bold text-ink/60 transition-enter active:scale-95">Cancelar</button>
+            <button onClick={resetPin} className="min-h-[44px] rounded-xl bg-terracotta px-3 text-sm font-extrabold text-white transition-enter active:scale-95">Resetear</button>
           </div>
         ) : (
           <button onClick={() => setConfirmPin(true)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold text-ink/55 transition-enter active:scale-95">
@@ -257,7 +257,7 @@ export default function AdminTeam() {
                     <button
                       onClick={() => setTimesFor(e)}
                       aria-label={`Corregir fichajes de ${e.name}`}
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-ink/55 transition active:scale-90"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-ink/55 transition active:scale-90"
                     >
                       <Clock size={18} />
                     </button>
@@ -265,7 +265,7 @@ export default function AdminTeam() {
                       <button
                         onClick={() => setConfirming(e)}
                         aria-label={`Desactivar a ${e.name}`}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-terracotta transition active:scale-90"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-terracotta transition active:scale-90"
                       >
                         <Trash size={18} />
                       </button>
@@ -288,7 +288,7 @@ export default function AdminTeam() {
                 </div>
                 <button
                   onClick={() => reactivate(e)}
-                  className="flex items-center gap-1.5 rounded-xl bg-sage/12 px-3 py-2 text-sm font-bold text-sage transition active:scale-95"
+                  className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-sage/12 px-3 text-sm font-bold text-sage transition active:scale-95"
                 >
                   <Power size={16} /> Reactivar
                 </button>

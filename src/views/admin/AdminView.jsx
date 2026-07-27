@@ -58,7 +58,13 @@ export default function AdminView() {
               options={[{ key: 'hoy', label: 'Hoy', icon: Activity }, { key: 'hist', label: 'Histórico', icon: BarChart }]}
               value={dashView} onChange={setDashView}
             />
-            {dashView === 'hoy' ? <AdminDashboard onOpenAnns={() => { setTab('comm'); setCommView('avisos') }} /> : <AdminStats />}
+            {dashView === 'hoy' ? (
+              <AdminDashboard
+                announcementStore={anns}
+                onOpenAnns={() => { setTab('comm'); setCommView('avisos') }}
+                onOpenIncidents={() => setTab('inc')}
+              />
+            ) : <AdminStats />}
           </>
         )}
         {tab === 'horario' && <ScheduleScreen />}
