@@ -1,100 +1,307 @@
 import { useMemo, useState } from 'react'
 import OverlayScreen from '../../components/OverlayScreen'
-import { WeekStepper } from '../../components/controls'
+import Sheet from '../../components/Sheet'
+import { Button, WeekStepper } from '../../components/controls'
 import { Card, SkeletonList } from '../../components/ui'
 import { useData } from '../../lib/useData'
-import { listCalendarEvents } from '../../lib/api'
-import { monthBounds, parseDate, isTodayStr } from '../../lib/date'
-import { Star, Clock, Lock, Plus, Pencil } from '../../components/icons'
-import CalendarEventSheet, { KINDS } from './CalendarEventSheet'
+import { listCalendarEvents, listClubSchedules } from '../../lib/api'
+import { isTodayStr, monthBounds, parseDate, todayMadrid } from '../../lib/date'
+import {
+  Calendar,
+  Clock,
+  Lock,
+  Pencil,
+  Plus,
+  Star,
+} from '../../components/icons'
+import CalendarEventSheet from './CalendarEventSheet'
+import CalendarScheduleSheet from './CalendarScheduleSheet'
+import {
+  calendarEntryType,
+  dayHours,
+  eventsForDay,
+  formatAgendaDate,
+  formatFullDate,
+  hm,
+  monthAgenda,
+  scheduleExceptionForDay,
+  scheduleSegmentsForMonth,
+  scheduleSummary,
+} from './calendarModel'
 
-// Estilo visual por tipo de día (coherente con la paleta de estados).
-const KIND_META = {
-  festivo:  { icon: Star,  dot: 'bg-bronze',     chip: 'bg-bronze/12 text-bronze-dark', cell: 'bg-bronze/[0.06]' },
-  especial: { icon: Clock, dot: 'bg-ochre',      chip: 'bg-ochre/15 text-[#8a6a1e]',    cell: 'bg-ochre/[0.07]' },
-  cerrado:  { icon: Lock,  dot: 'bg-terracotta', chip: 'bg-terracotta/12 text-terracotta', cell: 'bg-terracotta/[0.06]' },
-}
-const kindLabel = (k) => KINDS.find((x) => x.key === k)?.label || k
 const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 
-function hm(t) { return t ? t.slice(0, 5) : '' }
+function dateInMonth(date, month) {
+  return date >= month.startStr && date <= month.endStr
+}
 
-// ============================================================================
-// Calendario anual del gimnasio (desde Club): festividades, horarios especiales
-// y cierres, con vista MENSUAL navegable. Todos consultan; el admin edita.
-// ============================================================================
+function segmentLabel(segment, month) {
+  if (segment.start === month.startStr && segment.end === month.endStr) return null
+  const start = parseDate(segment.start).getDate()
+  const end = parseDate(segment.end).getDate()
+  if (segment.start === month.startStr) return `Hasta el ${end}`
+  if (segment.end === month.endStr) return `Desde el ${start}`
+  return `Del ${start} al ${end}`
+}
+
+function HoursValue({ value }) {
+  const closed = value === 'Cerrado'
+  return (
+    <span className={`block text-sm font-extrabold tabular ${closed ? 'text-terracotta' : 'text-ink'}`}>
+      {closed ? 'cerrado' : value.replaceAll(':00', '')}
+    </span>
+  )
+}
+
+function SchedulePeriod({ segment, month }) {
+  const summary = scheduleSummary(segment.schedule)
+  const label = segmentLabel(segment, month)
+  return (
+    <div>
+      {label && (
+        <p className="mb-1.5 text-[11px] font-extrabold uppercase text-bronze-dark">{label}</p>
+      )}
+      <div className="grid grid-cols-3 divide-x divide-ink/[0.06] overflow-hidden rounded-xl border border-ink/[0.07] bg-sand-25">
+        {[
+          ['L–V', summary.weekday],
+          ['Sáb', summary.saturday],
+          ['Dom', summary.sunday],
+        ].map(([day, value]) => (
+          <div key={day} className="min-w-0 px-2 py-2.5 text-center">
+            <span className="block text-[11px] font-extrabold uppercase text-ink/45">{day}</span>
+            <HoursValue value={value} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ScheduleCard({ schedules, month }) {
+  const segments = scheduleSegmentsForMonth(schedules, month.days)
+  return (
+    <Card className="p-4" aria-labelledby="club-schedule-title">
+      <h2 id="club-schedule-title" className="font-display text-card font-extrabold text-ink">
+        Horario de {month.label.split(' ')[0].toLowerCase()}
+      </h2>
+      {segments.length ? (
+        <div className="mt-3 space-y-3">
+          {segments.map((segment) => (
+            <SchedulePeriod key={`${segment.start}-${segment.end}`} segment={segment} month={month} />
+          ))}
+        </div>
+      ) : (
+        <p className="mt-2 text-sm text-ink/45">Todavía no hay un horario habitual configurado.</p>
+      )}
+    </Card>
+  )
+}
+
+function AgendaRow({ entry, isAdmin, onClick }) {
+  const isSchedule = calendarEntryType(entry) === 'schedule'
+  const closed = isSchedule && entry.kind === 'cerrado'
+  const Icon = isSchedule ? closed ? Lock : Clock : Star
+  const subtitle = isSchedule
+    ? `Horario · ${closed ? 'Cerrado' : `${hm(entry.open_time)}–${hm(entry.close_time)}`}`
+    : `Evento${entry.event_time ? ` · ${hm(entry.event_time)}` : ''}`
+  const content = (
+    <div className="flex min-h-[68px] items-center gap-3 px-3 py-2.5 text-left">
+      <div className="w-11 shrink-0 text-center">
+        <span className="block text-[11px] font-bold uppercase text-ink/40">
+          {formatAgendaDate(entry.event_date).split(' ')[0]}
+        </span>
+        <strong className="block font-display text-xl leading-none text-ink">
+          {parseDate(entry.event_date).getDate()}
+        </strong>
+      </div>
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+        isSchedule ? closed ? 'bg-terracotta/10 text-terracotta' : 'bg-ochre/15 text-[#8a6a1e]' : 'bg-bronze/12 text-bronze-dark'
+      }`}>
+        <Icon size={18} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <strong className="block break-words text-sm leading-snug text-ink">{entry.title}</strong>
+        <span className="mt-0.5 block text-xs font-semibold text-ink/45">{subtitle}</span>
+      </span>
+      {isAdmin && <Pencil size={16} className="shrink-0 text-ink/25" />}
+    </div>
+  )
+
+  return isAdmin ? (
+    <button type="button" onClick={onClick} className="w-full active:bg-ink/[0.03]">
+      {content}
+    </button>
+  ) : content
+}
+
+function DaySheet({
+  open,
+  date,
+  schedules,
+  entries,
+  isAdmin,
+  onClose,
+  onEditSchedule,
+  onAddEvent,
+  onEditEvent,
+}) {
+  if (!date) return null
+  const hours = dayHours(schedules, entries, date)
+  const exception = scheduleExceptionForDay(entries, date)
+  const events = eventsForDay(entries, date)
+  return (
+    <Sheet open={open} onClose={onClose} title={formatFullDate(date)} maxH="82vh">
+      <div className="space-y-4 pb-2">
+        <div className={`rounded-2xl p-4 ${hours.closed ? 'bg-terracotta/[0.08]' : 'bg-bronze/10'}`}>
+          <span className="text-xs font-bold uppercase text-ink/45">Horario del gimnasio</span>
+          <p className={`mt-1 font-display text-2xl font-extrabold tabular ${
+            hours.closed ? 'text-terracotta' : 'text-ink'
+          }`}>
+            {hours.label}
+          </p>
+          {exception?.note && <p className="mt-1 text-sm text-ink/55">{exception.note}</p>}
+        </div>
+
+        <div>
+          <h3 className="field-label">En el calendario</h3>
+          {events.length ? (
+            <div className="divide-y divide-ink/[0.06] overflow-hidden rounded-2xl border border-ink/[0.07] bg-white">
+              {events.map((entry) => (
+                <AgendaRow
+                  key={entry.id}
+                  entry={entry}
+                  isAdmin={isAdmin}
+                  onClick={() => onEditEvent(entry)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-2xl border border-ink/[0.07] bg-white px-4 py-3 text-sm text-ink/45">
+              No hay eventos para este día.
+            </p>
+          )}
+        </div>
+
+        {isAdmin && (
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <Button variant="secondary" size="sm" icon={Clock} onClick={onEditSchedule}>
+              Cambiar horario
+            </Button>
+            <Button size="sm" icon={Plus} onClick={onAddEvent}>
+              Añadir evento
+            </Button>
+          </div>
+        )}
+      </div>
+    </Sheet>
+  )
+}
+
 export default function CalendarScreen({ employee, onClose }) {
   const isAdmin = employee?.role === 'admin'
   const [offset, setOffset] = useState(0)
   const month = useMemo(() => monthBounds(offset), [offset])
-  const [selected, setSelected] = useState(null)     // 'YYYY-MM-DD' del día tocado
-  const [editing, setEditing] = useState(null)       // { date, event } para el sheet
-  const [sheetOpen, setSheetOpen] = useState(false)
-
   const events = useData(() => listCalendarEvents(month.startStr, month.endStr), [month.startStr])
+  const schedules = useData(listClubSchedules, [])
+  const [scheduleEditor, setScheduleEditor] = useState(null)
+  const [eventEditor, setEventEditor] = useState(null)
+  const [selectedDay, setSelectedDay] = useState(null)
 
-  // Eventos por día del mes visible.
-  const byDay = useMemo(() => {
-    const m = {}
-    for (const e of events.data || []) (m[e.event_date] ||= []).push(e)
-    return m
-  }, [events.data])
-
-  // Relleno inicial para alinear el día 1 con su columna (semana empieza en lunes).
-  const firstDow = (parseDate(month.days[0]).getDay() + 6) % 7 // 0=lunes
+  const monthEntries = events.data || []
+  const monthSchedules = schedules.data || []
+  const agenda = monthAgenda(monthEntries)
+  const calendarUnavailable = events.loading || schedules.loading || events.error || schedules.error
+  const firstDow = (parseDate(month.days[0]).getDay() + 6) % 7
   const blanks = Array.from({ length: firstDow })
+  const defaultDate = dateInMonth(todayMadrid(), month) ? todayMadrid() : month.startStr
 
-  const monthEvents = (events.data || [])
-  const selectedEvents = selected ? (byDay[selected] || []) : []
+  async function reloadAll() {
+    await Promise.all([events.reload(true), schedules.reload(true)])
+  }
 
-  function openNew(date) { setEditing({ date, event: null }); setSheetOpen(true) }
-  function openEdit(ev) { setEditing({ date: ev.event_date, event: ev }); setSheetOpen(true) }
+  function openSchedule(date = defaultDate, mode = 'regular') {
+    setSelectedDay(null)
+    setScheduleEditor({ date, mode })
+  }
+
+  function openEvent(date = defaultDate, entry = null) {
+    setSelectedDay(null)
+    setEventEditor({ date, entry })
+  }
 
   return (
-    <OverlayScreen title="Calendario anual" onClose={onClose}>
+    <OverlayScreen title="Calendario del club" onClose={onClose}>
       <div className="space-y-4 pb-6">
         <WeekStepper
           label={month.label}
-          onPrev={() => { setOffset((o) => o - 1); setSelected(null) }}
-          onNext={() => { setOffset((o) => o + 1); setSelected(null) }}
+          onPrev={() => { setOffset((current) => current - 1); setSelectedDay(null) }}
+          onNext={() => { setOffset((current) => current + 1); setSelectedDay(null) }}
         />
 
-        {events.loading ? (
+        {isAdmin && (
+          <div aria-label="Acciones del calendario" className="grid grid-cols-2 gap-2 rounded-xl2 border border-ink/[0.07] bg-white p-2 shadow-card">
+            <Button variant="secondary" size="sm" icon={Pencil} full disabled={calendarUnavailable} onClick={() => openSchedule()}>
+              Editar horario
+            </Button>
+            <Button size="sm" icon={Plus} full disabled={calendarUnavailable} onClick={() => openEvent()}>
+              Añadir evento
+            </Button>
+          </div>
+        )}
+
+        {events.loading || schedules.loading ? (
           <SkeletonList rows={4} />
+        ) : events.error || schedules.error ? (
+          <Card className="p-4 text-sm text-terracotta">
+            No se pudo cargar el calendario. Comprueba la conexión e inténtalo de nuevo.
+          </Card>
         ) : (
           <>
-            {/* Cuadrícula del mes */}
-            <Card className="overflow-hidden p-3">
+            <ScheduleCard schedules={monthSchedules} month={month} />
+
+            <Card className="overflow-hidden p-3" aria-label="Calendario mensual">
               <div className="mb-1 grid grid-cols-7">
-                {DOW.map((d) => (
-                  <span key={d} className="py-1 text-center text-[11px] font-bold text-ink/35">{d}</span>
+                {DOW.map((day) => (
+                  <span key={day} className="py-1 text-center text-[11px] font-extrabold text-ink/40">{day}</span>
                 ))}
               </div>
               <div className="grid grid-cols-7 gap-1">
-                {blanks.map((_, i) => <span key={`b${i}`} />)}
-                {month.days.map((d) => {
-                  const evs = byDay[d] || []
-                  const top = evs[0]
-                  const meta = top ? KIND_META[top.kind] : null
-                  const today = isTodayStr(d)
-                  const on = selected === d
+                {blanks.map((_, index) => <span key={`blank-${index}`} />)}
+                {month.days.map((date) => {
+                  const hours = dayHours(monthSchedules, monthEntries, date)
+                  const exception = scheduleExceptionForDay(monthEntries, date)
+                  const dayEvents = eventsForDay(monthEntries, date)
+                  const today = isTodayStr(date)
+                  const dateLabel = formatFullDate(date)
+                  const eventLabel = dayEvents.length
+                    ? `. ${dayEvents.map((entry) => entry.title).join(', ')}`
+                    : ''
                   return (
                     <button
-                      key={d}
-                      onClick={() => setSelected(on ? null : d)}
-                      className={`relative flex min-h-[44px] flex-col items-center justify-center rounded-xl text-sm transition active:scale-95 ${
-                        on ? 'bg-ink text-white' : meta ? meta.cell : ''
-                      } ${today && !on ? 'ring-1 ring-inset ring-bronze/50' : ''}`}
+                      key={date}
+                      type="button"
+                      onClick={() => setSelectedDay(date)}
+                      aria-label={`${dateLabel}. Horario ${hours.label}${eventLabel}`}
+                      className={`relative flex min-h-[58px] min-w-0 flex-col items-center justify-center rounded-xl px-0.5 transition active:scale-95 ${
+                        exception?.kind === 'cerrado'
+                          ? 'bg-terracotta/[0.07]'
+                          : exception?.kind === 'especial'
+                            ? 'bg-ochre/[0.08]'
+                            : today ? 'ring-1 ring-inset ring-bronze/50' : ''
+                      }`}
                     >
-                      <span className={`tabular font-semibold ${on ? 'text-white' : today ? 'text-bronze-dark' : 'text-ink/80'}`}>
-                        {parseDate(d).getDate()}
+                      <span className={`text-sm font-bold tabular ${today ? 'text-bronze-dark' : 'text-ink/80'}`}>
+                        {parseDate(date).getDate()}
                       </span>
-                      {evs.length > 0 && (
-                        <span className="mt-0.5 flex gap-0.5">
-                          {evs.slice(0, 3).map((e, i) => (
-                            <span key={i} className={`h-1.5 w-1.5 rounded-full ${on ? 'bg-white/80' : KIND_META[e.kind].dot}`} />
-                          ))}
+                      {exception && (
+                        <span className={`mt-1 max-w-full text-[11px] font-extrabold leading-none tabular ${
+                          exception.kind === 'cerrado' ? 'text-terracotta' : 'text-[#8a6a1e]'
+                        }`}>
+                          {exception.kind === 'cerrado' ? 'Cerrado' : `${hm(exception.open_time)}–${hm(exception.close_time)}`.replaceAll(':00', '')}
                         </span>
+                      )}
+                      {dayEvents.length > 0 && (
+                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-bronze" aria-hidden="true" />
                       )}
                     </button>
                   )
@@ -102,90 +309,66 @@ export default function CalendarScreen({ employee, onClose }) {
               </div>
             </Card>
 
-            {/* Leyenda discreta (info, no interactiva) */}
-            <div className="flex flex-wrap gap-x-4 gap-y-1 px-1">
-              {KINDS.map((k) => (
-                <span key={k.key} className="flex items-center gap-1.5 text-xs text-ink/45">
-                  <span className={`h-2 w-2 rounded-full ${KIND_META[k.key].dot}`} /> {k.label}
-                </span>
-              ))}
-            </div>
-
-            {/* Detalle del día seleccionado (si tiene eventos o el admin va a añadir) */}
-            {selected && (
-              <Card className="overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3">
-                  <p className="flex-1 font-display text-card font-bold capitalize text-ink">
-                    {parseDate(selected).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-                  </p>
-                  {isAdmin && (
-                    <button onClick={() => openNew(selected)} className="flex min-h-[44px] items-center gap-1 rounded-full bg-ink px-3.5 text-xs font-bold text-white active:scale-95">
-                      <Plus size={14} /> Añadir
-                    </button>
-                  )}
-                </div>
-                {selectedEvents.length === 0 ? (
-                  <p className="border-t border-ink/[0.06] px-4 py-3 text-sm text-ink/40">
-                    Día normal · horario habitual del gimnasio.
-                  </p>
-                ) : (
-                  <div className="divide-y divide-ink/[0.06] border-t border-ink/[0.06]">
-                    {selectedEvents.map((ev) => <EventRow key={ev.id} ev={ev} isAdmin={isAdmin} onEdit={() => openEdit(ev)} />)}
-                  </div>
-                )}
-              </Card>
-            )}
-
-            {/* Resumen del mes: todos los días especiales en lista (escaneo rápido) */}
-            <div>
-              <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wide text-ink/40">Días especiales del mes</p>
-              {monthEvents.length === 0 ? (
-                <Card className="p-4 text-sm text-ink/40">Ningún día especial este mes. Horario habitual todos los días.</Card>
-              ) : (
+            <section aria-labelledby="month-agenda-title">
+              <h2 id="month-agenda-title" className="mb-2 px-1 text-[11px] font-extrabold uppercase text-ink/45">
+                Este mes · {month.label.split(' ')[0].toLowerCase()}
+              </h2>
+              {agenda.length ? (
                 <Card className="divide-y divide-ink/[0.06] overflow-hidden">
-                  {monthEvents.map((ev) => (
-                    <EventRow key={ev.id} ev={ev} isAdmin={isAdmin} onEdit={() => openEdit(ev)} showDate />
+                  {agenda.map((entry) => (
+                    <AgendaRow
+                      key={entry.id}
+                      entry={entry}
+                      isAdmin={isAdmin}
+                      onClick={() => {
+                        if (calendarEntryType(entry) === 'schedule') {
+                          openSchedule(entry.event_date, 'day')
+                        } else {
+                          openEvent(entry.event_date, entry)
+                        }
+                      }}
+                    />
                   ))}
                 </Card>
+              ) : (
+                <Card className="p-4 text-sm text-ink/45">
+                  No hay cambios de horario ni eventos este mes.
+                </Card>
               )}
-            </div>
+            </section>
           </>
         )}
       </div>
 
+      <DaySheet
+        open={Boolean(selectedDay)}
+        date={selectedDay}
+        schedules={monthSchedules}
+        entries={monthEntries}
+        isAdmin={isAdmin}
+        onClose={() => setSelectedDay(null)}
+        onEditSchedule={() => openSchedule(selectedDay, 'day')}
+        onAddEvent={() => openEvent(selectedDay)}
+        onEditEvent={(entry) => openEvent(entry.event_date, entry)}
+      />
+
+      <CalendarScheduleSheet
+        open={Boolean(scheduleEditor)}
+        initialDate={scheduleEditor?.date || defaultDate}
+        initialMode={scheduleEditor?.mode || 'regular'}
+        schedules={monthSchedules}
+        entries={monthEntries}
+        onClose={() => setScheduleEditor(null)}
+        onSaved={reloadAll}
+      />
+
       <CalendarEventSheet
-        open={sheetOpen}
-        date={editing?.date}
-        editing={editing?.event}
-        onClose={() => setSheetOpen(false)}
-        onSaved={() => events.reload(true)}
+        open={Boolean(eventEditor)}
+        date={eventEditor?.date || defaultDate}
+        editing={eventEditor?.entry || null}
+        onClose={() => setEventEditor(null)}
+        onSaved={reloadAll}
       />
     </OverlayScreen>
   )
-}
-
-// Fila de un día especial: icono tonal + nombre + horario/nota; el admin la edita.
-function EventRow({ ev, isAdmin, onEdit, showDate = false }) {
-  const meta = KIND_META[ev.kind] || KIND_META.festivo
-  const Icon = meta.icon
-  const row = (
-    <div className="flex items-center gap-3 px-4 py-3 text-left">
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${meta.chip}`}>
-        <Icon size={18} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-ink">{ev.title}</p>
-        <p className="flex flex-wrap items-center gap-x-2 text-xs text-ink/45">
-          {showDate && <span className="font-semibold text-ink/55 capitalize">{parseDate(ev.event_date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' })}</span>}
-          <span className="font-semibold" style={{ color: 'inherit' }}>{kindLabel(ev.kind)}</span>
-          {ev.kind === 'especial' && ev.open_time && <span className="tabular">{hm(ev.open_time)}–{hm(ev.close_time)}</span>}
-          {ev.note && <span className="truncate">· {ev.note}</span>}
-        </p>
-      </div>
-      {isAdmin && <Pencil size={16} className="shrink-0 text-ink/30" />}
-    </div>
-  )
-  return isAdmin ? (
-    <button onClick={onEdit} className="w-full transition active:bg-ink/[0.03]">{row}</button>
-  ) : row
 }

@@ -22,27 +22,63 @@ async function resilientInsert(table, row) {
 
 // ---------- EMPLEADOS ----------
 // Columnas seguras: nunca se selecciona `pin` (el PIN solo se valida en el servidor vía RPC).
-const EMP_COLS = 'id, name, role, color, active, birth_date, photo_url, geofenced, requires_time_tracking'
+const EMP_BASE_COLS = 'id, name, role, color, active, birth_date, photo_url, geofenced'
+const EMP_COLS = `${EMP_BASE_COLS}, requires_time_tracking`
+
+// La app se puede abrir antes de que una migración llegue al proyecto remoto.
+// En ese intervalo, recuperamos el equipo con el esquema anterior y mantenemos
+// el comportamiento histórico: todos los perfiles fichan.
+function isMissingTimeTrackingColumn(error) {
+  return error?.code === '42703' && error?.message?.includes('requires_time_tracking')
+}
+
+function legacyEmployee(employee) {
+  return employee ? { ...employee, requires_time_tracking: true } : employee
+}
+
+function legacyEmployees(employees) {
+  return (employees || []).map(legacyEmployee)
+}
 
 export async function listEmployees() {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('employees')
     .select(EMP_COLS)
     .eq('active', true)
     .order('role')
     .order('name')
+  if (isMissingTimeTrackingColumn(error)) {
+    ({ data, error } = await supabase
+      .from('employees')
+      .select(EMP_BASE_COLS)
+      .eq('active', true)
+      .order('role')
+      .order('name'))
+    if (error) throw error
+    return legacyEmployees(data)
+  }
   if (error) throw error
   return data
 }
 
 // Todos los perfiles, incluidos los desactivados (para gestión del admin).
 export async function listAllEmployees() {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('employees')
     .select(EMP_COLS)
     .order('active', { ascending: false })
     .order('role')
     .order('name')
+  if (isMissingTimeTrackingColumn(error)) {
+    ({ data, error } = await supabase
+      .from('employees')
+      .select(EMP_BASE_COLS)
+      .order('active', { ascending: false })
+      .order('role')
+      .order('name'))
+    if (error) throw error
+    return legacyEmployees(data)
+  }
   if (error) throw error
   return data
 }
@@ -50,11 +86,20 @@ export async function listAllEmployees() {
 // Perfil actual completo: refresca la preferencia de fichaje de una sesión
 // guardada localmente después de que dirección la cambie.
 export async function getEmployee(id) {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('employees')
     .select(EMP_COLS)
     .eq('id', id)
     .maybeSingle()
+  if (isMissingTimeTrackingColumn(error)) {
+    ({ data, error } = await supabase
+      .from('employees')
+      .select(EMP_BASE_COLS)
+      .eq('id', id)
+      .maybeSingle())
+    if (error) throw error
+    return legacyEmployee(data)
+  }
   if (error) throw error
   return data
 }
@@ -106,24 +151,38 @@ export async function createEmployee({
   geofenced = true,
   requires_time_tracking = true,
 }) {
-  const { data, error } = await supabase
+  const row = {
+    name,
+    role,
+    color,
+    birth_date,
+    geofenced: role === 'admin' ? false : geofenced,
+    requires_time_tracking: role === 'admin' ? requires_time_tracking : true,
+  }
+  let { data, error } = await supabase
     .from('employees')
-    .insert({
-      name,
-      role,
-      color,
-      birth_date,
-      geofenced: role === 'admin' ? false : geofenced,
-      requires_time_tracking: role === 'admin' ? requires_time_tracking : true,
-    })
-    .select()
+    .insert(row)
+    .select(EMP_COLS)
     .single()
+  if (isMissingTimeTrackingColumn(error)) {
+    const { requires_time_tracking: _requiresTimeTracking, ...legacyRow } = row
+    ({ data, error } = await supabase.from('employees').insert(legacyRow).select(EMP_BASE_COLS).single())
+    if (error) throw error
+    return legacyEmployee(data)
+  }
   if (error) throw error
   return data
 }
 
 export async function updateEmployee(id, patch) {
-  const { data, error } = await supabase.from('employees').update(patch).eq('id', id).select(EMP_COLS).single()
+  let { data, error } = await supabase.from('employees').update(patch).eq('id', id).select(EMP_COLS).single()
+  if (isMissingTimeTrackingColumn(error)) {
+    const { requires_time_tracking: _requiresTimeTracking, ...legacyPatch } = patch
+    if (Object.keys(legacyPatch).length === 0) throw error
+    ({ data, error } = await supabase.from('employees').update(legacyPatch).eq('id', id).select(EMP_BASE_COLS).single())
+    if (error) throw error
+    return legacyEmployee(data)
+  }
   if (error) throw error
   return data
 }
@@ -1001,18 +1060,115 @@ export async function listCalendarEvents(fromDate, toDate) {
 }
 
 export async function createCalendarEvent(event) {
-  const { data, error } = await supabase.from('calendar_events').insert(event).select().single()
+  let { data, error } = await supabase.from('calendar_events').insert(event).select().single()
+  if (
+    (error?.code === 'PGRST204' || error?.code === '42703') &&
+    (error?.message?.includes('entry_type') || error?.message?.includes('event_time'))
+  ) {
+    const { entry_type: _entryType, event_time: _eventTime, ...legacyEvent } = event
+    ;({ data, error } = await supabase.from('calendar_events').insert(legacyEvent).select().single())
+  }
   if (error) throw error
   return data
 }
 
 export async function updateCalendarEvent(id, patch) {
-  const { error } = await supabase.from('calendar_events').update(patch).eq('id', id)
+  let { error } = await supabase.from('calendar_events').update(patch).eq('id', id)
+  if (
+    (error?.code === 'PGRST204' || error?.code === '42703') &&
+    (error?.message?.includes('entry_type') || error?.message?.includes('event_time'))
+  ) {
+    const { entry_type: _entryType, event_time: _eventTime, ...legacyPatch } = patch
+    ;({ error } = await supabase.from('calendar_events').update(legacyPatch).eq('id', id))
+  }
   if (error) throw error
 }
 
 export async function deleteCalendarEvent(id) {
   const { error } = await supabase.from('calendar_events').delete().eq('id', id)
+  if (error) throw error
+}
+
+const DEFAULT_CLUB_SCHEDULES = [
+  {
+    id: 'fallback-2026-01-01',
+    start_date: '2026-01-01',
+    end_date: null,
+    weekday_open: '06:00',
+    weekday_close: '23:00',
+    weekday_closed: false,
+    saturday_open: '09:00',
+    saturday_close: '20:00',
+    saturday_closed: false,
+    sunday_open: '09:00',
+    sunday_close: '14:00',
+    sunday_closed: false,
+    created_at: '2026-01-01T00:00:00.000Z',
+    updated_at: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'fallback-2026-07-01',
+    start_date: '2026-07-01',
+    end_date: null,
+    weekday_open: '07:00',
+    weekday_close: '22:00',
+    weekday_closed: false,
+    saturday_open: '09:00',
+    saturday_close: '18:00',
+    saturday_closed: false,
+    sunday_open: '09:00',
+    sunday_close: '14:00',
+    sunday_closed: true,
+    created_at: '2026-07-01T00:00:00.000Z',
+    updated_at: '2026-07-01T00:00:00.000Z',
+  },
+]
+
+function isMissingClubSchedules(error) {
+  return error?.code === '42P01' || error?.code === 'PGRST205'
+}
+
+function pendingClubSchedulesError() {
+  const error = new Error('La migración del calendario todavía no está aplicada.')
+  error.code = 'CLUB_SCHEDULES_PENDING'
+  return error
+}
+
+export async function listClubSchedules() {
+  const { data, error } = await supabase
+    .from('club_schedules')
+    .select('*')
+    .order('start_date')
+    .order('updated_at')
+  if (isMissingClubSchedules(error)) return DEFAULT_CLUB_SCHEDULES.map((item) => ({ ...item }))
+  if (error) throw error
+  return data
+}
+
+export async function createClubSchedule(schedule) {
+  const payload = { ...schedule, updated_at: new Date().toISOString() }
+  const { data, error } = await supabase.from('club_schedules').insert(payload).select().single()
+  if (isMissingClubSchedules(error)) throw pendingClubSchedulesError()
+  if (error) throw error
+  return data
+}
+
+export async function updateClubSchedule(id, patch) {
+  const payload = { ...patch, updated_at: new Date().toISOString() }
+  const { data, error } = await supabase
+    .from('club_schedules')
+    .update(payload)
+    .eq('id', id)
+    .select()
+    .single()
+  if (isMissingClubSchedules(error)) throw pendingClubSchedulesError()
+  if (error) throw error
+  return data
+}
+
+export async function deleteClubSchedule(id) {
+  const { error } = await supabase.from('club_schedules').delete().eq('id', id)
+  if (isMissingClubSchedules(error)) throw pendingClubSchedulesError()
   if (error) throw error
 }
 

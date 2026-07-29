@@ -1,139 +1,204 @@
 import { useEffect, useState } from 'react'
 import Sheet from '../../components/Sheet'
-import { Button, Chip } from '../../components/controls'
-import { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from '../../lib/api'
+import { Button } from '../../components/controls'
+import { createCalendarEvent, deleteCalendarEvent, updateCalendarEvent } from '../../lib/api'
 import { useToast } from '../../components/Toast'
 import { haptic } from '../../lib/haptics'
-import { parseDate } from '../../lib/date'
-import { Trash, Star, Clock, Lock } from '../../components/icons'
+import { Trash } from '../../components/icons'
 
-// Tipos de día excepcional. El horario semanal normal NO se toca aquí.
-export const KINDS = [
-  { key: 'festivo', label: 'Festivo', icon: Star },
-  { key: 'especial', label: 'Horario especial', icon: Clock },
-  { key: 'cerrado', label: 'Cerrado', icon: Lock },
-]
-
-const inp = 'w-full rounded-2xl border border-ink/10 bg-sand-25 px-4 py-3 text-base outline-none focus:border-bronze'
-const timeInp = 'rounded-xl border border-ink/10 bg-white px-2 py-2.5 text-base font-semibold tabular outline-none focus:border-bronze'
-
-// Editor de un día del calendario (solo admin). `date` = 'YYYY-MM-DD'.
-// `editing` = evento existente o null (alta).
 export default function CalendarEventSheet({ open, date, editing, onClose, onSaved }) {
   const toast = useToast()
-  const [kind, setKind] = useState('festivo')
+  const [eventDate, setEventDate] = useState(date)
   const [title, setTitle] = useState('')
-  const [note, setNote] = useState('')
-  const [openTime, setOpenTime] = useState('10:00')
-  const [closeTime, setCloseTime] = useState('14:00')
+  const [eventTime, setEventTime] = useState('')
+  const [details, setDetails] = useState('')
   const [busy, setBusy] = useState(false)
-  const [confirmDel, setConfirmDel] = useState(false)
+  const [dirty, setDirty] = useState(false)
+  const [discarding, setDiscarding] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (!open) return
-    setConfirmDel(false)
-    if (editing) {
-      setKind(editing.kind)
-      setTitle(editing.title || '')
-      setNote(editing.note || '')
-      setOpenTime(editing.open_time ? editing.open_time.slice(0, 5) : '10:00')
-      setCloseTime(editing.close_time ? editing.close_time.slice(0, 5) : '14:00')
-    } else {
-      setKind('festivo'); setTitle(''); setNote(''); setOpenTime('10:00'); setCloseTime('14:00')
-    }
-  }, [open, editing])
+    setEventDate(editing?.event_date || date)
+    setTitle(editing?.title || '')
+    setEventTime(editing?.event_time?.slice(0, 5) || '')
+    setDetails(editing?.note || '')
+    setDirty(false)
+    setDiscarding(false)
+    setConfirmDelete(false)
+    setError('')
+  }, [open, date, editing])
 
-  const dateLabel = date
-    ? parseDate(date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-    : ''
+  function change(setter, value) {
+    setter(value)
+    setDirty(true)
+    setDiscarding(false)
+    setConfirmDelete(false)
+    setError('')
+  }
+
+  function requestClose() {
+    if (busy) return
+    if (dirty) {
+      setDiscarding(true)
+      return
+    }
+    onClose()
+  }
 
   async function save() {
-    if (!title.trim()) { toast('Ponle un nombre al día', 'error'); return }
-    if (kind === 'especial' && closeTime <= openTime) { toast('El cierre debe ser posterior', 'error'); return }
+    if (!eventDate) {
+      setError('Elige el día del evento.')
+      return
+    }
+    if (!title.trim()) {
+      setError('Escribe un nombre para el evento.')
+      return
+    }
+
     setBusy(true)
+    setError('')
     const payload = {
-      event_date: date,
-      kind,
+      event_date: eventDate,
+      entry_type: 'event',
+      kind: 'festivo',
       title: title.trim(),
-      note: note.trim() || null,
-      open_time: kind === 'especial' ? openTime : null,
-      close_time: kind === 'especial' ? closeTime : null,
+      note: details.trim() || null,
+      event_time: eventTime || null,
+      open_time: null,
+      close_time: null,
     }
     try {
       if (editing) await updateCalendarEvent(editing.id, payload)
       else await createCalendarEvent(payload)
       haptic('success')
-      toast(editing ? 'Día actualizado ✓' : 'Día añadido al calendario ✓')
-      onSaved()
+      toast(editing ? 'Evento actualizado' : 'Evento añadido al calendario')
+      setDirty(false)
+      await onSaved()
       onClose()
-    } catch { toast('No se pudo guardar', 'error') } finally { setBusy(false) }
+    } catch {
+      setError('No se pudo guardar el evento. Inténtalo de nuevo.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function remove() {
     setBusy(true)
+    setError('')
     try {
       await deleteCalendarEvent(editing.id)
       haptic('warning')
-      toast('Día eliminado')
-      onSaved()
+      toast('Evento eliminado')
+      setDirty(false)
+      await onSaved()
       onClose()
-    } catch { toast('No se pudo eliminar', 'error') } finally { setBusy(false) }
+    } catch {
+      setError('No se pudo eliminar el evento.')
+    } finally {
+      setBusy(false)
+    }
   }
 
-  return (
-    <Sheet open={open} onClose={onClose} title={editing ? 'Editar día' : 'Añadir día'}>
-      <p className="-mt-1 mb-4 text-sm capitalize text-ink/50">{dateLabel}</p>
-
-      <div className="space-y-4 pb-2">
-        <div>
-          <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-ink/40">Tipo de día</p>
-          <div className="flex flex-wrap gap-2">
-            {KINDS.map((k) => (
-              <Chip key={k.key} icon={k.icon} selected={kind === k.key} onClick={() => setKind(k.key)}>
-                {k.label}
-              </Chip>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-ink/40">Nombre</p>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej: Navidad, Festivo local…" className={inp} autoFocus={!editing} />
-        </div>
-
-        {kind === 'especial' && (
-          <div>
-            <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-ink/40">Horario ese día</p>
-            <div className="flex items-center gap-2">
-              <input type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} className={`${timeInp} flex-1`} />
-              <span className="text-ink/30">→</span>
-              <input type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} className={`${timeInp} flex-1`} />
-            </div>
-          </div>
-        )}
-
-        <div>
-          <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-ink/40">Nota (opcional)</p>
-          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Detalle para el equipo…" className={inp} />
-        </div>
-
-        <Button variant="primary" full loading={busy} onClick={save}>
-          {editing ? 'Guardar cambios' : 'Añadir al calendario'}
+  const footer = discarding ? (
+    <div role="alert" className="space-y-2">
+      <p className="text-center text-sm font-semibold text-ink/70">Tienes cambios sin guardar.</p>
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="secondary" size="sm" onClick={() => setDiscarding(false)}>
+          Seguir editando
         </Button>
+        <Button variant="danger" size="sm" onClick={() => { setDirty(false); onClose() }}>
+          Descartar
+        </Button>
+      </div>
+    </div>
+  ) : (
+    <Button full loading={busy} onClick={save}>
+      {editing ? 'Guardar cambios' : 'Añadir evento'}
+    </Button>
+  )
+
+  return (
+    <Sheet
+      open={open}
+      onClose={requestClose}
+      title={editing ? 'Editar evento' : 'Añadir evento'}
+      maxH="92vh"
+      footer={footer}
+    >
+      <div className="space-y-4 pb-1">
+        <label className="block">
+          <span className="field-label">Día</span>
+          <input
+            type="date"
+            value={eventDate}
+            onChange={(event) => change(setEventDate, event.target.value)}
+            className="field min-h-[50px] font-semibold"
+          />
+        </label>
+
+        <label className="block">
+          <span className="field-label">Evento</span>
+          <input
+            value={title}
+            onChange={(event) => change(setTitle, event.target.value)}
+            placeholder="Ej. Formación de equipo"
+            className="field"
+            data-sheet-autofocus={!editing ? '' : undefined}
+          />
+        </label>
+
+        <label className="block">
+          <span className="field-label">Hora (opcional)</span>
+          <input
+            type="time"
+            value={eventTime}
+            onChange={(event) => change(setEventTime, event.target.value)}
+            className="field min-h-[50px] font-semibold tabular"
+          />
+        </label>
+
+        <label className="block">
+          <span className="field-label">Detalles (opcional)</span>
+          <textarea
+            value={details}
+            onChange={(event) => change(setDetails, event.target.value)}
+            rows={3}
+            placeholder="Información que necesita conocer el equipo"
+            className="field resize-none"
+          />
+        </label>
+
+        <p className="rounded-2xl bg-bronze/10 px-4 py-3 text-sm leading-relaxed text-ink/65">
+          El evento aparecerá en el día elegido y en la agenda del mes. No modificará el horario del gimnasio.
+        </p>
 
         {editing && (
-          confirmDel ? (
-            <div className="flex items-center gap-2 rounded-2xl bg-terracotta/8 p-2">
-              <span className="flex-1 px-2 text-sm font-semibold text-terracotta">¿Eliminar este día?</span>
-              <button onClick={() => setConfirmDel(false)} className="min-h-[44px] rounded-xl bg-white px-3 text-sm font-bold text-ink/60 active:scale-95">Cancelar</button>
-              <button onClick={remove} disabled={busy} className="min-h-[44px] rounded-xl bg-terracotta px-3 text-sm font-extrabold text-white active:scale-95 disabled:opacity-50">Sí, eliminar</button>
+          confirmDelete ? (
+            <div className="rounded-2xl bg-terracotta/[0.08] p-2">
+              <p className="px-2 pb-2 text-sm font-semibold text-terracotta">¿Eliminar este evento?</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)}>
+                  Cancelar
+                </Button>
+                <Button variant="danger" size="sm" loading={busy} onClick={remove}>
+                  Sí, eliminar
+                </Button>
+              </div>
             </div>
           ) : (
-            <button onClick={() => setConfirmDel(true)} className="flex min-h-[44px] w-full items-center justify-center gap-1.5 text-sm font-bold text-terracotta active:scale-95">
-              <Trash size={16} /> Eliminar día
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl text-sm font-bold text-terracotta active:bg-terracotta/[0.06]"
+            >
+              <Trash size={17} /> Eliminar evento
             </button>
           )
         )}
+
+        {error && <p role="alert" className="field-error !px-0">{error}</p>}
       </div>
     </Sheet>
   )

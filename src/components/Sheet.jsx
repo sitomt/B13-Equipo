@@ -4,10 +4,12 @@ import { useLockBody } from './ui'
 import { X } from './icons'
 
 // Bottom sheet móvil: aparece desde abajo, fondo oscurecido.
-export default function Sheet({ open, onClose, title, children, maxH = '85vh' }) {
+export default function Sheet({ open, onClose, title, children, footer, maxH = '85vh' }) {
   const titleId = useId()
   const panelRef = useRef(null)
   const returnFocusRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
   useLockBody(open)
 
   useEffect(() => {
@@ -29,7 +31,7 @@ export default function Sheet({ open, onClose, title, children, maxH = '85vh' })
     function onKeyDown(e) {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key !== 'Tab' || !panelRef.current) return
@@ -62,7 +64,7 @@ export default function Sheet({ open, onClose, title, children, maxH = '85vh' })
         if (!document.querySelector('[role="dialog"]')) returnFocusRef.current?.focus?.()
       }, 0)
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
   return createPortal(
@@ -79,13 +81,13 @@ export default function Sheet({ open, onClose, title, children, maxH = '85vh' })
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative z-10 w-full max-w-md animate-slide-up rounded-t-xl3 bg-sand-50 shadow-sheet ring-1 ring-white/60 sm:rounded-xl3"
+        className="relative z-10 flex w-full max-w-md flex-col overflow-hidden rounded-t-xl3 bg-sand-50 shadow-sheet ring-1 ring-white/60 animate-slide-up sm:rounded-xl3"
         style={{ maxHeight: maxH }}
       >
-        <div className="flex items-center justify-between px-5 pt-4">
+        <div className="flex shrink-0 items-center justify-between px-5 pt-4">
           <div className="mx-auto h-1.5 w-10 rounded-full bg-ink/15 sm:hidden" />
         </div>
-        <div className="flex items-center justify-between px-5 pb-2 pt-1">
+        <div className="flex shrink-0 items-center justify-between px-5 pb-2 pt-1">
           <h2 id={titleId} className="font-display text-2xl font-extrabold tracking-tight">{title}</h2>
           <button
             type="button"
@@ -96,9 +98,14 @@ export default function Sheet({ open, onClose, title, children, maxH = '85vh' })
             <X size={20} />
           </button>
         </div>
-        <div className="no-scrollbar overflow-y-auto px-5 pb-8" style={{ maxHeight: `calc(${maxH} - 4rem)` }}>
+        <div className={`no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 ${footer ? 'pb-4' : 'pb-8'}`}>
           {children}
         </div>
+        {footer && (
+          <div className="shrink-0 border-t border-ink/[0.07] bg-sand-50/95 px-5 pb-safe pt-3">
+            <div className="pb-3">{footer}</div>
+          </div>
+        )}
       </div>
     </div>,
     document.body,

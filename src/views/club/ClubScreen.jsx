@@ -270,8 +270,8 @@ export default function ClubScreen({ employee }) {
               <Calendar size={24} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block font-display text-card font-bold">Calendario anual</span>
-              <span className="mt-0.5 block text-xs text-white/55">Festividades y horarios especiales</span>
+              <span className="block font-display text-card font-bold">Calendario del club</span>
+              <span className="mt-0.5 block text-xs text-white/55">Horarios, cierres y eventos</span>
             </span>
             <Chevron size={20} className="shrink-0 text-white/40" />
           </button>
