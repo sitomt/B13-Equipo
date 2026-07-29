@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { todayMadrid, addDaysMadrid } from './date'
 import { enqueue, isNetworkError } from './offline'
+import { isSuperAdmin } from './employeePermissions'
 
 // Inserción resiliente para acciones de campo: si falla por falta de cobertura,
 // se encola y se reintenta al volver la red. Devuelve { queued }.
@@ -23,85 +24,89 @@ async function resilientInsert(table, row) {
 // ---------- EMPLEADOS ----------
 // Columnas seguras: nunca se selecciona `pin` (el PIN solo se valida en el servidor vía RPC).
 const EMP_BASE_COLS = 'id, name, role, color, active, birth_date, photo_url, geofenced'
-const EMP_COLS = `${EMP_BASE_COLS}, requires_time_tracking`
+const EMP_TIME_COLS = `${EMP_BASE_COLS}, requires_time_tracking`
+const EMP_COLS = `${EMP_TIME_COLS}, is_super_admin`
 
 // La app se puede abrir antes de que una migración llegue al proyecto remoto.
 // En ese intervalo, recuperamos el equipo con el esquema anterior y mantenemos
 // el comportamiento histórico: todos los perfiles fichan.
-function isMissingTimeTrackingColumn(error) {
-  return error?.code === '42703' && error?.message?.includes('requires_time_tracking')
+function isMissingEmployeeColumn(error) {
+  return error?.code === '42703' && /requires_time_tracking|is_super_admin/.test(error?.message || '')
 }
 
-function legacyEmployee(employee) {
-  return employee ? { ...employee, requires_time_tracking: true } : employee
+function normalizeEmployee(employee, layout = {}) {
+  if (!employee) return employee
+  return {
+    ...employee,
+    // Antes de la migración, Ginés sigue sin fichar. El resto conserva el
+    // comportamiento histórico hasta que la preferencia se pueda guardar.
+    requires_time_tracking: layout.hasTimeTracking
+      ? employee.requires_time_tracking
+      : !isSuperAdmin(employee),
+    is_super_admin: layout.hasSuperAdmin
+      ? Boolean(employee.is_super_admin)
+      : isSuperAdmin(employee),
+  }
 }
 
-function legacyEmployees(employees) {
-  return (employees || []).map(legacyEmployee)
+function normalizeEmployees(employees, layout) {
+  return (employees || []).map((employee) => normalizeEmployee(employee, layout))
+}
+
+// Permite desplegar el cliente antes de aplicar las migraciones de equipo.
+// Prueba el esquema completo y baja de forma controlada al que exista.
+async function selectEmployees(query) {
+  const layouts = [
+    { cols: EMP_COLS, hasTimeTracking: true, hasSuperAdmin: true },
+    { cols: EMP_TIME_COLS, hasTimeTracking: true, hasSuperAdmin: false },
+    { cols: EMP_BASE_COLS, hasTimeTracking: false, hasSuperAdmin: false },
+  ]
+  let lastError
+  for (const layout of layouts) {
+    const { data, error } = await query(layout.cols)
+    if (!error) return { data, layout }
+    if (!isMissingEmployeeColumn(error)) throw error
+    lastError = error
+  }
+  throw lastError
 }
 
 export async function listEmployees() {
-  let { data, error } = await supabase
-    .from('employees')
-    .select(EMP_COLS)
-    .eq('active', true)
-    .order('role')
-    .order('name')
-  if (isMissingTimeTrackingColumn(error)) {
-    ({ data, error } = await supabase
+  const { data, layout } = await selectEmployees((cols) =>
+    supabase
       .from('employees')
-      .select(EMP_BASE_COLS)
+      .select(cols)
       .eq('active', true)
       .order('role')
-      .order('name'))
-    if (error) throw error
-    return legacyEmployees(data)
-  }
-  if (error) throw error
-  return data
+      .order('name'),
+  )
+  return normalizeEmployees(data, layout)
 }
 
 // Todos los perfiles, incluidos los desactivados (para gestión del admin).
 export async function listAllEmployees() {
-  let { data, error } = await supabase
-    .from('employees')
-    .select(EMP_COLS)
-    .order('active', { ascending: false })
-    .order('role')
-    .order('name')
-  if (isMissingTimeTrackingColumn(error)) {
-    ({ data, error } = await supabase
+  const { data, layout } = await selectEmployees((cols) =>
+    supabase
       .from('employees')
-      .select(EMP_BASE_COLS)
+      .select(cols)
       .order('active', { ascending: false })
       .order('role')
-      .order('name'))
-    if (error) throw error
-    return legacyEmployees(data)
-  }
-  if (error) throw error
-  return data
+      .order('name'),
+  )
+  return normalizeEmployees(data, layout)
 }
 
 // Perfil actual completo: refresca la preferencia de fichaje de una sesión
 // guardada localmente después de que dirección la cambie.
 export async function getEmployee(id) {
-  let { data, error } = await supabase
-    .from('employees')
-    .select(EMP_COLS)
-    .eq('id', id)
-    .maybeSingle()
-  if (isMissingTimeTrackingColumn(error)) {
-    ({ data, error } = await supabase
+  const { data, layout } = await selectEmployees((cols) =>
+    supabase
       .from('employees')
-      .select(EMP_BASE_COLS)
+      .select(cols)
       .eq('id', id)
-      .maybeSingle())
-    if (error) throw error
-    return legacyEmployee(data)
-  }
-  if (error) throw error
-  return data
+      .maybeSingle(),
+  )
+  return normalizeEmployee(data, layout)
 }
 
 // ---------- LOGIN / PIN (gate ligero, validado en servidor vía RPC) ----------
@@ -142,7 +147,6 @@ export async function clearPin(employeeId) {
 
 // Alta de un nuevo perfil. Crea la fila en la BD (login simulado actual).
 // `geofenced`: si true, solo puede fichar dentro de la geocerca del gym.
-// El admin (responsable/dueño) ficha desde cualquier sitio → siempre false.
 export async function createEmployee({
   name,
   role,
@@ -157,34 +161,36 @@ export async function createEmployee({
     color,
     birth_date,
     geofenced: role === 'admin' ? false : geofenced,
-    requires_time_tracking: role === 'admin' ? requires_time_tracking : true,
+    requires_time_tracking,
   }
   let { data, error } = await supabase
     .from('employees')
     .insert(row)
-    .select(EMP_COLS)
+    .select(EMP_TIME_COLS)
     .single()
-  if (isMissingTimeTrackingColumn(error)) {
+  if (isMissingEmployeeColumn(error)) {
     const { requires_time_tracking: _requiresTimeTracking, ...legacyRow } = row
     ({ data, error } = await supabase.from('employees').insert(legacyRow).select(EMP_BASE_COLS).single())
     if (error) throw error
-    return legacyEmployee(data)
+    return normalizeEmployee(data, { hasTimeTracking: false, hasSuperAdmin: false })
   }
   if (error) throw error
-  return data
+  return normalizeEmployee(data, { hasTimeTracking: true, hasSuperAdmin: false })
 }
 
 export async function updateEmployee(id, patch) {
-  let { data, error } = await supabase.from('employees').update(patch).eq('id', id).select(EMP_COLS).single()
-  if (isMissingTimeTrackingColumn(error)) {
+  let { data, error } = await supabase.from('employees').update(patch).eq('id', id).select(EMP_TIME_COLS).single()
+  if (isMissingEmployeeColumn(error)) {
+    // No confirmamos un cambio de fichaje si la columna todavía no existe:
+    // sería peor decir "guardado" y perder la preferencia al recargar.
+    if (Object.hasOwn(patch, 'requires_time_tracking')) throw error
     const { requires_time_tracking: _requiresTimeTracking, ...legacyPatch } = patch
-    if (Object.keys(legacyPatch).length === 0) throw error
     ({ data, error } = await supabase.from('employees').update(legacyPatch).eq('id', id).select(EMP_BASE_COLS).single())
     if (error) throw error
-    return legacyEmployee(data)
+    return normalizeEmployee(data, { hasTimeTracking: false, hasSuperAdmin: false })
   }
   if (error) throw error
-  return data
+  return normalizeEmployee(data, { hasTimeTracking: true, hasSuperAdmin: false })
 }
 
 // Baja lógica: conserva el histórico (fichajes, turnos, incidencias) y lo

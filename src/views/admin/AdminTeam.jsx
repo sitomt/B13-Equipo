@@ -10,6 +10,7 @@ import { isBirthdayToday } from '../../lib/date'
 import GeofenceEditor from '../../components/GeofenceEditor'
 import TimeEntriesEditor from '../../components/TimeEntriesEditor'
 import { User, Plus, Trash, Power, Settings, Dumbbell, Spray, Wrench, Key, MapPin, Clock } from '../../components/icons'
+import { canCreateRole, canManageEmployee, isSuperAdmin } from '../../lib/employeePermissions'
 
 const ROLE_META = {
   admin: { label: 'Administración', short: 'Admin', icon: Settings },
@@ -23,7 +24,7 @@ const ROLE_ORDER = ['admin', 'coach', 'cleaning', 'maintenance']
 const COLORS = ['#B98A5E', '#A4774C', '#5E8C61', '#B4503C', '#C99A3E', '#5B7A8C', '#2C2925']
 
 // Hoja de alta/edición de un perfil.
-function EmployeeEditor({ open, onClose, editing, onSaved }) {
+function EmployeeEditor({ open, onClose, editing, onSaved, actor }) {
   const toast = useToast()
   const [name, setName] = useState('')
   const [role, setRole] = useState('coach')
@@ -33,6 +34,10 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
   const [requiresTimeTracking, setRequiresTimeTracking] = useState(true)
   const [busy, setBusy] = useState(false)
   const [confirmPin, setConfirmPin] = useState(false)
+  const managingSuperAdmin = isSuperAdmin(editing)
+  const availableRoles = managingSuperAdmin
+    ? ['admin']
+    : ROLE_ORDER.filter((candidate) => canCreateRole(actor, candidate))
 
   // Sincroniza el formulario al abrir (alta vacía o edición prerrellenada).
   const [lastOpen, setLastOpen] = useState(false)
@@ -59,23 +64,37 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
 
   async function save() {
     if (!name.trim()) { toast('Pon un nombre', 'error'); return }
+    if (editing && !canManageEmployee(actor, editing)) {
+      toast('Este perfil lo gestiona dirección', 'error')
+      return
+    }
+    const finalRole = managingSuperAdmin ? 'admin' : role
+    if (!canCreateRole(actor, finalRole)) {
+      toast('No puedes crear ni convertir perfiles de administración', 'error')
+      return
+    }
     setBusy(true)
     try {
-      // El admin nunca tiene geocerca (ficha desde cualquier sitio).
-      const geofencedFinal = role === 'admin' ? false : geofenced
+      // Administración ficha sin geocerca; en los demás perfiles es opcional.
+      const geofencedFinal = finalRole === 'admin' ? false : geofenced
       const fields = {
         name: name.trim(),
-        role,
+        role: finalRole,
         color,
         birth_date: birthDate || null,
         geofenced: geofencedFinal,
-        requires_time_tracking: role === 'admin' ? requiresTimeTracking : true,
+      }
+      if (!editing || requiresTimeTracking !== (editing.requires_time_tracking ?? true)) {
+        fields.requires_time_tracking = requiresTimeTracking
       }
       const saved = editing ? await updateEmployee(editing.id, fields) : await createEmployee(fields)
       toast(editing ? 'Perfil actualizado ✓' : 'Perfil creado ✓')
       onClose()
       onSaved?.(saved)
-    } catch { toast('No se pudo guardar', 'error') } finally { setBusy(false) }
+    } catch (error) {
+      const migrationPending = error?.code === '42703' && /requires_time_tracking|is_super_admin/.test(error?.message || '')
+      toast(migrationPending ? 'Falta actualizar la base de datos para guardar este ajuste' : 'No se pudo guardar', 'error')
+    } finally { setBusy(false) }
   }
 
   return (
@@ -91,12 +110,14 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
 
       <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-ink/40">Rol</label>
       <div className="mb-4 flex flex-wrap gap-2">
-        {ROLE_ORDER.map((r) => {
+        {availableRoles.map((r) => {
           const Icon = ROLE_META[r].icon
           return (
             <button
               key={r}
+              type="button"
               onClick={() => setRole(r)}
+              disabled={managingSuperAdmin}
               className={`flex items-center gap-1.5 min-h-[44px] rounded-full px-4 text-sm font-semibold transition active:scale-95 ${
                 role === r ? 'bg-ink text-white' : 'bg-ink/5 text-ink/70'
               }`}
@@ -130,8 +151,28 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
       />
       <p className="mb-5 px-1 text-xs text-ink/40">El día de su cumpleaños recibirá una felicitación de Baktun 13.</p>
 
-      {/* Geocerca de fichaje: el admin queda exento (ficha desde cualquier sitio) */}
-      {role !== 'admin' && (
+      <button
+        type="button"
+        onClick={() => setRequiresTimeTracking((v) => !v)}
+        aria-pressed={requiresTimeTracking}
+        className="mb-5 flex w-full items-center gap-3 rounded-2xl bg-ink/[0.04] p-4 text-left transition active:scale-[0.99]"
+      >
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${requiresTimeTracking ? 'bg-bronze/15 text-bronze-dark' : 'bg-ink/8 text-ink/40'}`}>
+          <Clock size={20} />
+        </span>
+        <span className="flex-1">
+          <span className="block font-semibold text-ink">Debe fichar</span>
+          <span className="block text-xs text-ink/45">
+            {requiresTimeTracking ? 'Registrará su entrada y salida' : 'No verá el fichaje ni se le pedirá registrar jornada'}
+          </span>
+        </span>
+        <span className={`relative h-7 w-12 shrink-0 rounded-full transition ${requiresTimeTracking ? 'bg-sage' : 'bg-ink/15'}`}>
+          <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${requiresTimeTracking ? 'left-6' : 'left-1'}`} />
+        </span>
+      </button>
+
+      {/* La geocerca solo afecta a perfiles que fichan. */}
+      {role !== 'admin' && requiresTimeTracking && (
         <button
           type="button"
           onClick={() => setGeofenced((v) => !v)}
@@ -152,30 +193,9 @@ function EmployeeEditor({ open, onClose, editing, onSaved }) {
         </button>
       )}
       {role === 'admin' && (
-        <div className="mb-5 space-y-2">
-          <p className="flex items-center gap-2 px-1 text-xs text-ink/45">
-            <MapPin size={14} /> Los perfiles de administración fichan sin restricción de ubicación.
-          </p>
-          <button
-            type="button"
-            onClick={() => setRequiresTimeTracking((v) => !v)}
-            aria-pressed={requiresTimeTracking}
-            className="flex w-full items-center gap-3 rounded-2xl bg-ink/[0.04] p-4 text-left transition active:scale-[0.99]"
-          >
-            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${requiresTimeTracking ? 'bg-bronze/15 text-bronze-dark' : 'bg-ink/8 text-ink/40'}`}>
-              <Clock size={20} />
-            </span>
-            <span className="flex-1">
-              <span className="block font-semibold text-ink">Debe fichar</span>
-              <span className="block text-xs text-ink/45">
-                {requiresTimeTracking ? 'Verá y registrará su jornada' : 'No verá el fichaje ni se le pedirá registrar jornada'}
-              </span>
-            </span>
-            <span className={`relative h-7 w-12 shrink-0 rounded-full transition ${requiresTimeTracking ? 'bg-sage' : 'bg-ink/15'}`}>
-              <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${requiresTimeTracking ? 'left-6' : 'left-1'}`} />
-            </span>
-          </button>
-        </div>
+        <p className="mb-5 flex items-center gap-2 px-1 text-xs text-ink/45">
+          <MapPin size={14} /> Administración ficha sin restricción de ubicación.
+        </p>
       )}
 
       <button
@@ -221,11 +241,22 @@ export default function AdminTeam() {
   const inactive = all.filter((e) => !e.active)
 
   function openNew() { setEditing(null); setEditorOpen(true) }
-  function openEdit(e) { setEditing(e); setEditorOpen(true) }
+  function openEdit(e) {
+    if (!canManageEmployee(me, e)) {
+      toast('Este perfil lo gestiona dirección', 'error')
+      return
+    }
+    setEditing(e)
+    setEditorOpen(true)
+  }
 
   async function confirmDeactivate() {
     const e = confirming
     setConfirming(null)
+    if (!canManageEmployee(me, e)) {
+      toast('Este perfil lo gestiona dirección', 'error')
+      return
+    }
     try {
       await deactivateEmployee(e.id)
       await emp.reload(true)
@@ -234,6 +265,10 @@ export default function AdminTeam() {
   }
 
   async function reactivate(e) {
+    if (!canManageEmployee(me, e)) {
+      toast('Este perfil lo gestiona dirección', 'error')
+      return
+    }
     try {
       await updateEmployee(e.id, { active: true })
       await emp.reload(true)
@@ -275,15 +310,23 @@ export default function AdminTeam() {
           return (
             <SectionCard key={r} icon={Icon} title={ROLE_META[r].label} right={<CountBadge tone="ink">{list.length}</CountBadge>} persistKey={`b13.team.${r}`}>
               {list.map((e) => (
+                (() => {
+                  const canManage = canManageEmployee(me, e)
+                  const status = e.requires_time_tracking === false
+                    ? 'No ficha'
+                    : canManage
+                      ? 'Toca para editar'
+                      : 'Gestionado por dirección'
+                  return (
                   <div key={e.id} className="flex items-center gap-3 p-3">
-                    <button onClick={() => openEdit(e)} className="flex min-w-0 flex-1 items-center gap-3 text-left active:opacity-70">
+                    <button onClick={() => openEdit(e)} disabled={!canManage} className={`flex min-w-0 flex-1 items-center gap-3 text-left ${canManage ? 'active:opacity-70' : 'cursor-default'}`}>
                       <Avatar emp={e} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-semibold text-ink">{e.name}{isBirthdayToday(e.birth_date) && <span title="Hoy es su cumpleaños"> 🎂</span>}{e.id === me?.id && <span className="ml-1.5 text-xs font-normal text-ink/35">(tú)</span>}</p>
-                        <p className="text-xs text-ink/40">{e.requires_time_tracking === false ? 'No ficha · Toca para editar' : 'Toca para editar'}</p>
+                        <p className="text-xs text-ink/40">{status}</p>
                       </div>
                     </button>
-                    {e.requires_time_tracking !== false && (
+                    {canManage && e.requires_time_tracking !== false && (
                       <button
                         onClick={() => setTimesFor(e)}
                         aria-label={`Corregir fichajes de ${e.name}`}
@@ -292,7 +335,7 @@ export default function AdminTeam() {
                         <Clock size={18} />
                       </button>
                     )}
-                    {e.id !== me?.id && (
+                    {canManage && e.id !== me?.id && (
                       <button
                         onClick={() => setConfirming(e)}
                         aria-label={`Desactivar a ${e.name}`}
@@ -302,6 +345,8 @@ export default function AdminTeam() {
                       </button>
                     )}
                   </div>
+                  )
+                })()
               ))}
             </SectionCard>
           )
@@ -317,12 +362,14 @@ export default function AdminTeam() {
                   <p className="truncate font-semibold text-ink">{e.name}</p>
                   <p className="text-xs capitalize text-ink/40">{ROLE_META[e.role]?.short || e.role}</p>
                 </div>
-                <button
-                  onClick={() => reactivate(e)}
-                  className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-sage/12 px-3 text-sm font-bold text-sage transition active:scale-95"
-                >
-                  <Power size={16} /> Reactivar
-                </button>
+                {canManageEmployee(me, e) && (
+                  <button
+                    onClick={() => reactivate(e)}
+                    className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-sage/12 px-3 text-sm font-bold text-sage transition active:scale-95"
+                  >
+                    <Power size={16} /> Reactivar
+                  </button>
+                )}
               </div>
           ))}
         </SectionCard>
@@ -332,6 +379,7 @@ export default function AdminTeam() {
         open={editorOpen}
         onClose={() => setEditorOpen(false)}
         editing={editing}
+        actor={me}
         onSaved={(saved) => {
           if (saved?.id === me?.id) login(saved)
           emp.reload(true)
